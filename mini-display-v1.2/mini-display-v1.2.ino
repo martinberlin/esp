@@ -52,6 +52,7 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // WIFI Access Home / AndroidAP define this in array to allow trying different Wlan networks
 char* ssids[] = {"KabelBox-A210", "AndroidAP"};
 char* passwords[] = {"14237187131701431551", "fasfasnar"};
+const byte wifiLength = 2; // Number of networks above
 // TODO Check how to get length of array in C++
 byte wifiIndex = 0;
 boolean wlGiveUp = false;
@@ -88,27 +89,26 @@ void setup(void) {
   while (WiFi.status() != WL_CONNECTED) {
     char* ssid = ssids[wifiIndex];
     char* password = passwords[wifiIndex];
-    Serial.print("Try connecting to:" + String(ssid)); Serial.println();
-
+ 
     if (countTryConnection % 10 == 0) {
       WiFi.begin(ssid, password);
       lcd.setCursor(0, 1);
       lcd.print("Try:" + String(ssid) + " ");
 
       wifiIndex++;
-      if (wifiIndex > 1) wifiIndex = 0;
+      if (wifiIndex > wifiLength-1) wifiIndex = 0;
     }
     if (countTryConnection == 0) {
       lcd.clear();
-      lcd.print("Could not connect");
+      lcd.print("Can not connect");
+      lcd.setCursor(0, 1);
+      lcd.print("to defined WiFi");
       delay(1000);
       handle_sleep();
     }
     // Wait for connection
     delay(1000);
     lcd.print(".");
-    Serial.println(countTryConnection);
-
     countTryConnection--;
   }
   Serial.print("IP address: ");
@@ -220,7 +220,7 @@ void handleRelayOff() {
   analogWrite(LED_PIN, actualLedPwm);
   delay(200);
   backlightDim(actualLedPwm);
-  server.send(200, "text/html");
+  server.send(200, "text/html", "Relay OFF");
 }
 
 void handleRelayOn() {
@@ -231,7 +231,7 @@ void handleRelayOn() {
   delay(200);
   backlightDim(actualLedPwm);
 
-  server.send(200, "text/html");
+  server.send(200, "text/html", "Relay ON");
 }
 
 void handleLcdWrite() {
