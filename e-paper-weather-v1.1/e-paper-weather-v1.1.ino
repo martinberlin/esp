@@ -22,7 +22,6 @@
 #include <GxEPD.h>
 #include <GxGDEW027C44/GxGDEW027C44.cpp>
 #include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSerif9pt7b.h>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
 #include <pgmspace.h>
@@ -132,27 +131,32 @@ void DisplayForecast(){ // Display is 264x176 resolution
   display.setTextColor(GxEPD_BLACK);
   display.setCursor(0,12);
   DisplayWXicon(14,15, Icon0);  DisplayWXicon(77,0, "thermo"); DisplayWXicon(139,0, "probrain");
+  
   display.setTextColor(GxEPD_RED);
-  display.setCursor(32,12); display.println(currentTime); // HH:mm
-  display.setCursor(175,12);  display.println(Day0);
+  display.setCursor(176,12);  display.println(Day0);
+  display.setFont(NULL);
+  display.setCursor(233,23); display.println(currentTime); // HH:mm
+  display.setCursor(75,42);  display.println(Conditions0);
   display.setTextColor(GxEPD_BLACK);
-  display.setCursor(174,28);  display.println(Conditions0);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,40);   display.println(High0 + "/" + Low0);
   display.setCursor(105,40);  display.println(Averagehumidity0 + "%");
   display.setCursor(148,40);  display.println(Pop0 + "%");
-  //display.setCursor(60,55); display.println(F("--------------------------"));
  
   DisplayWXicon(13,76, Icon1); DisplayWXicon(75,60, "thermo"); DisplayWXicon(139,60, "probrain");
   display.setCursor(175,72);  display.println(Day1);
-  display.setCursor(45,115);  display.println(Conditions1);
+  display.setFont(NULL);
+  display.setCursor(75,105);  display.println(Conditions1);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,100);  display.println(High1 + "/" + Low1);
   display.setCursor(105,100); display.println(Averagehumidity1 + "%");
   display.setCursor(148,100); display.println(Pop1 + "%");
-  //display.setCursor(60,115);  display.println(F("-------------------------"));
   
   DisplayWXicon(10,142, Icon2); DisplayWXicon(75,118, "thermo"); DisplayWXicon(139,118, "probrain");
   display.setCursor(175,132); display.println(Day2);
-  display.setCursor(45,172); display.println(Conditions2);
+  display.setFont(NULL);
+  display.setCursor(75,162); display.println(Conditions2);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,157);  display.println(High2 + "/" + Low2);
   display.setCursor(105,157); display.println(Averagehumidity2 + "%");
   display.setCursor(148,157); display.println(Pop2 + "%"); 
@@ -233,11 +237,10 @@ String obtain_time() {
     }
   }
   
-  bool     skip_headers = true;
-  String   rx_line;
-  uint16_t respLen = 0;
-
+  bool   skip_headers = true;
+  String rx_line;
   String response;
+  
   // Read all the lines of the reply from server and print them to Serial
   while(httpclient.available()){
     rx_line = httpclient.readStringUntil('\r');
