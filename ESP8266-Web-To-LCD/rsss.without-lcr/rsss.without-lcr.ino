@@ -1,24 +1,6 @@
 /*
    Web to LCD (ESP8266 Only, no Arduino) by www.varind.com 2016. This code is public domain, enjoy!
    Latest code: https://github.com/varind/ESP8266-Web-To-LCD
-   Project page: : http://www.variableindustries.com/web-to-lcd-2/
-
-   LCD 1 VSS -> 200 ohm -> +5V
-   LCD 2 GND -> GND
-   LCD 3 VO Pin -> center pin of 10k Potentiometer (ends to +5V & GND)
-   LCD 4 RS pin -> ESP-12  pin 13
-   LCD 5 R/W pin -> GND
-   LCD 6 Enable pin -> ESP-12 pin 12
-   LCD 11 D4 pin -> ESP-12  pin 14
-   LCD 12 D5 pin -> ESP-12  pin 5
-   LCD 13 D6 pin -> ESP-12  pin 4
-   LCD 14 D7 pin -> ESP-12  pin 2
-   LCD 15 A (backlight) -> 220 ohm -> +5V
-   LCD 16 K (backlight) -> GND
-
-   ESP-12 VCC -> +3.3V
-   ESP-12 GND -> GND
-   ESP-12 pin CH_PD -> 10K -> +3.3V
 
    To connect the ESP8266 to your network:
    -Connect your computer to the Wireless AP defined in ESPssid (default: "ESP LCD")
@@ -46,7 +28,7 @@ ESP8266HTTPUpdateServer httpUpdater;
 IPAddress apIP(192, 168, 0, 2);
 IPAddress netMsk(255, 255, 255, 0);
 
-bool debug = true;
+bool debug = false;
 
 const char *ESPssid     = "espAP";
 const char *ESPpassword = "123456789";
@@ -61,9 +43,9 @@ char password[32] = "14237187131701431551";
 
 
 //#define BBCNEWS    // Does not work
-//#define NYTNEWS  // Does not work
+#define NYTNEWS  // Does not work
 //#define ABCNEWS
-#define WEATHER
+//#define WEATHER
 //#define BIGWEATHER
 //#define STOCK
 //#define BIGSTOCK
@@ -241,9 +223,10 @@ byte dataInstance = 0;
 void setup() {
   Serial.begin(115200);
 
-  WiFi.softAPConfig(apIP, apIP, netMsk);
-  WiFi.softAP(ESPssid, ESPpassword);
-  delay(500); // Without delay I've seen the IP address blank
+// When serves as softAP then it has no access to the internet, just acts as server
+  //WiFi.softAPConfig(apIP, apIP, netMsk);
+  //WiFi.softAP(ESPssid, ESPpassword);
+  //delay(500); // Without delay I've seen the IP address blank
 
   /* Setup web pages: root, wifi config pages, and not found. */
   server.on("/", handleRoot);
@@ -287,49 +270,58 @@ void getAndDisplay(){
 }
 
 void getData() {
-  WiFiClient client;
+  WiFiClient httpclient;
   Serial.print(">> Connecting to ");
   Serial.println(dataServer);
-  
-  if (!client.connect(dataServer, 80)) {
-    Serial.println(">> Connection Failed !");
-    clientConnected = false;
-    client.stop();
-    return;
-  } else {
-    clientConnected = true;
-  }
+
 
   String url = dataPage;
 
-  Serial.print(">> Requesting URL: ");
-  Serial.println(dataPage);
-
-  Serial.println("");
-  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-               "Host: " + dataServer + "\r\nUser-Agent: Mozilla/4.0\r\n" +
-               "Connection: close\r\n\r\n");
+  String request;
+  request  = "GET "+url+" HTTP/1.1\r\n";
+  request += F("Accept: */*\r\n");
+  request += "Host: " +String(dataServer)+ "\r\n";
+  request += F("Connection: close\r\n");
+  request += F("\r\n");
+  Serial.println(request);
+  Serial.println(dataServer+url);
+//  
+//  client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+//               "Host: " + dataServer + "\r\nUser-Agent: Mozilla/4.0\r\n" +
+//               "Connection: close\r\n\r\n");
+  
+  if (!httpclient.connect(dataServer, 80)) {
+    Serial.println(">> Connection Failed !");
+    clientConnected = false;
+    httpclient.stop();
+    return;
+  } else {
+    clientConnected = true;
+    httpclient.print(request); //send the http request to the server
+    httpclient.flush();
+  }
+  
   unsigned long timeout = millis();
-  while (client.available() == 0) {
+  while (httpclient.available() == 0) {
     if (millis() - timeout > 5000) {
       Serial.println(">> Client Timeout !");
-      client.stop();
+      httpclient.stop();
       return;
     }
   }
 
   memPos = 0;
-  while (client.available()) {
+  while (httpclient.available()) {
 
 #ifdef INSTANCENUMBER
     if (dataInstance == INSTANCENUMBER) {
-      client.flush();
+      httpclient.flush();
       dataInstance = 0;
       break;
     }
 #endif
 
-    line = client.readStringUntil('\n');
+    line = httpclient.readStringUntil('\n');
 
 #ifdef SPECIALREPLACE
     line.replace("&#x2019;", "\'");                        //replace special characters
@@ -411,7 +403,7 @@ void getData() {
   }
   Serial.println();
   Serial.println("closing connection");
-  client.stop();
+  httpclient.stop();
 }
 
 

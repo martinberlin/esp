@@ -68,8 +68,8 @@ GxEPD_Class display(io, D4, D6);
 //------ NETWORK VARIABLES---------
 // Use your own API key by signing up for a free developer account at http://www.wunderground.com/weather/api/
 String API_key       = "ecfde31ed95eb892";            // See: http://www.wunderground.com/weather/api/d/docs (change here with your KEY)
-String City          = "Berlin";                      // Your home city
-String Country       = "Germany";                     // Your country ES=Spain   
+String City          = "Valldemossa";                      // Your home city
+String Country       = "Spain";                     // Your country ES=Spain   
 String Conditions    = "conditions";                  // See: http://www.wunderground.com/weather/api/d/docs?d=data/index&MR=1
 char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnderGround
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
@@ -214,10 +214,10 @@ String obtain_time() {
 
   String request;
   request  = "GET "+url+" HTTP/1.1\r\n";
-  request += F("Accept: */*\r\n");
+  request += "Accept: */*\r\n";
   request += "Host: " +host+ "\r\n";
-  request += F("Connection: close\r\n");
-  request += F("\r\n");
+  request += "Connection: close\r\n";
+  request += "\r\n";
   Serial.println(request);
   if (!httpclient.connect(host, 80)) {
     Serial.println("connection failed");
