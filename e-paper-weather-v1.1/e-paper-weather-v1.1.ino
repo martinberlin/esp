@@ -27,10 +27,10 @@
 #include <pgmspace.h>
 
 
-//const char* ssid     = "AndroidAP";
-//const char* password = "fasfasnar";
-const char* ssid     = "KabelBox-A210";
-const char* password = "14237187131701431551";
+const char* ssid     = "JAZZTEL_0D36";
+const char* password = "quiero mucho al leon";
+//const char* ssid     = "KabelBox-A210";
+//const char* password = "14237187131701431551";
 
 //################# LIBRARIES ##########################
 String version = "1.1";       // Version of this program
@@ -68,8 +68,9 @@ GxEPD_Class display(io, D4, D6);
 //------ NETWORK VARIABLES---------
 // Use your own API key by signing up for a free developer account at http://www.wunderground.com/weather/api/
 String API_key       = "ecfde31ed95eb892";            // See: http://www.wunderground.com/weather/api/d/docs (change here with your KEY)
-String City          = "Valldemossa";                      // Your home city
-String Country       = "Spain";                     // Your country ES=Spain   
+
+String City          = "Arenys%20de%20Mar";
+String Country       = "Spain";                     // Your country ES=Spain use %20 for spaces (should be urlencoded)   
 String Conditions    = "conditions";                  // See: http://www.wunderground.com/weather/api/d/docs?d=data/index&MR=1
 char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnderGround
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
