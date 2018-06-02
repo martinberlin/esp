@@ -15,9 +15,11 @@
  *   See more at http://dsbird.org.uk */
        
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+
+#include <ESP8266WebServer.h>
 #include <ArduinoJson.h>     // https://github.com/bblanchon/ArduinoJson
 #include <WiFiClient.h>
-#include <WiFiClientSecure.h>
 #include "time.h"
 #include <SPI.h>
 #include <GxEPD.h>
@@ -28,30 +30,20 @@
 #include <pgmspace.h>
 
 
-//const char* ssid     = "AndroidAP";
-//const char* password = "fasfasnar";
-const char* ssid     = "KabelBox-A210";
-const char* password = "14237187131701431551";
+const char* ssid     = "JAZZTEL_0D36";
+const char* password = "quiero mucho al leon";
+const char* domainName= "carlos";  // mDNS: carlos.local
+// TCP server at port 80 will respond to HTTP requests
+//WiFiServer server(80);
+ESP8266WebServer server(80);
+
+String City          = "Arenys%20de%20Mar";
+String Country       = "Spain";                     // Your country ES=Spain use %20 for spaces (should be urlencoded)   
+boolean skipLoadingScreen = true;                   // Skips loading screen and makes it faster
 
 //################# LIBRARIES ##########################
 String version = "1.1";       // Version of this program
 //################ VARIABLES ###########################
-
-const unsigned char thermo_icon[] = { // 64x24
-0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xdf, 0xff, 
-0xf9, 0x9f, 0xff, 0xff, 0xff, 0xff, 0xdf, 0xff, 0xfb, 0xdf, 0xff, 0xff, 0xf3, 0xff, 0xdf, 0xff, 0xfb, 0x5f, 0xff, 0xff, 0xe9, 0xff, 0x0f, 0xff, 
-0xfb, 0x5f, 0xfc, 0x7f, 0xed, 0xbf, 0x0f, 0xff, 0xfa, 0x5e, 0x18, 0x3f, 0xed, 0x7e, 0x07, 0xff, 0xfb, 0x5e, 0xd9, 0x9f, 0xed, 0x7e, 0x07, 0xff, 
-0xfb, 0x5e, 0xd3, 0xdf, 0xe3, 0x7c, 0x03, 0xff, 0xfa, 0x5e, 0x13, 0xff, 0xf2, 0xfc, 0x03, 0xdf, 0xfb, 0x5f, 0xf7, 0xff, 0xfe, 0xfc, 0x13, 0xdf, 
-0xfb, 0x5f, 0xf7, 0xff, 0xfd, 0x9c, 0x07, 0xdf, 0xfa, 0x5f, 0xf7, 0xff, 0xfd, 0x4e, 0x07, 0x8f, 0xfb, 0x5f, 0xf3, 0xdf, 0xfb, 0x6f, 0x0f, 0x8f, 
-0xfb, 0x5f, 0xf1, 0x9f, 0xfb, 0x6f, 0xff, 0x07, 0xfa, 0x5f, 0xf8, 0x3f, 0xfb, 0x6f, 0xff, 0x07, 0xfa, 0x1f, 0xfc, 0x7f, 0xf7, 0x1f, 0xff, 0x03, 
-0xf0, 0x0f, 0xff, 0xff, 0xff, 0x9f, 0xfe, 0x03, 0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x03, 0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x13, 
-0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x07, 0xf0, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07, 0xf8, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0x8f };
-
-const unsigned char probrain_icon[] = { // 32x24
-0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf8, 0x1f, 0xff, 0xff, 0xe0, 0x07, 0xff, 0xff, 0xc7, 0xe0, 0x7f, 
-0xff, 0xdf, 0xf8, 0x3f, 0xff, 0x1f, 0xff, 0x9f, 0xfc, 0x3f, 0xff, 0xcf, 0xe0, 0x7f, 0xdf, 0xc7, 0xc0, 0xff, 0x9f, 0xc3, 0x9f, 0xff, 0x1f, 0xf9, 
-0x3f, 0xff, 0x1f, 0xfc, 0x3f, 0xfe, 0x1f, 0xfc, 0x3f, 0xfb, 0x1f, 0xfc, 0x9f, 0xf3, 0x3b, 0xf9, 0xc0, 0x63, 0xf3, 0x03, 0xe0, 0x63, 0xe3, 0x87, 
-0xff, 0xc3, 0xe3, 0xff, 0xff, 0xe7, 0xc3, 0xff, 0xff, 0xe7, 0xe3, 0xff, 0xff, 0xff, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 // pins_arduino.h, e.g. WEMOS D1 Mini
 //static const uint8_t SS    = D8;
@@ -66,8 +58,7 @@ GxEPD_Class display(io, D4, D6);
 //------ NETWORK VARIABLES---------
 // Use your own API key by signing up for a free developer account at http://www.wunderground.com/weather/api/
 String API_key       = "ecfde31ed95eb892";            // See: http://www.wunderground.com/weather/api/d/docs (change here with your KEY)
-String City          = "Berlin";                      // Your home city
-String Country       = "Germany";                     // Your country ES=Spain   
+
 String Conditions    = "conditions";                  // See: http://www.wunderground.com/weather/api/d/docs?d=data/index&MR=1
 char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnderGround
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
@@ -86,62 +77,96 @@ String WDay0, Day0, Icon0, High0, Low0, Conditions0, Pop0, Averagehumidity0,
 String  DphaseofMoon, Sunrise, Sunset, Moonrise, Moonset, Moonlight;
 
 String currCondString; // string to hold received API weather data
+String currentTime;
+
+const unsigned char thermo_icon[] = { // 64x24
+0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xdf, 0xff, 
+0xf9, 0x9f, 0xff, 0xff, 0xff, 0xff, 0xdf, 0xff, 0xfb, 0xdf, 0xff, 0xff, 0xf3, 0xff, 0xdf, 0xff, 0xfb, 0x5f, 0xff, 0xff, 0xe9, 0xff, 0x0f, 0xff, 
+0xfb, 0x5f, 0xfc, 0x7f, 0xed, 0xbf, 0x0f, 0xff, 0xfa, 0x5e, 0x18, 0x3f, 0xed, 0x7e, 0x07, 0xff, 0xfb, 0x5e, 0xd9, 0x9f, 0xed, 0x7e, 0x07, 0xff, 
+0xfb, 0x5e, 0xd3, 0xdf, 0xe3, 0x7c, 0x03, 0xff, 0xfa, 0x5e, 0x13, 0xff, 0xf2, 0xfc, 0x03, 0xdf, 0xfb, 0x5f, 0xf7, 0xff, 0xfe, 0xfc, 0x13, 0xdf, 
+0xfb, 0x5f, 0xf7, 0xff, 0xfd, 0x9c, 0x07, 0xdf, 0xfa, 0x5f, 0xf7, 0xff, 0xfd, 0x4e, 0x07, 0x8f, 0xfb, 0x5f, 0xf3, 0xdf, 0xfb, 0x6f, 0x0f, 0x8f, 
+0xfb, 0x5f, 0xf1, 0x9f, 0xfb, 0x6f, 0xff, 0x07, 0xfa, 0x5f, 0xf8, 0x3f, 0xfb, 0x6f, 0xff, 0x07, 0xfa, 0x1f, 0xfc, 0x7f, 0xf7, 0x1f, 0xff, 0x03, 
+0xf0, 0x0f, 0xff, 0xff, 0xff, 0x9f, 0xfe, 0x03, 0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x03, 0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x13, 
+0xe0, 0x07, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x07, 0xf0, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07, 0xf8, 0x1f, 0xff, 0xff, 0xff, 0xff, 0xff, 0x8f };
+
+const unsigned char probrain_icon[] = { // 32x24
+0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf8, 0x1f, 0xff, 0xff, 0xe0, 0x07, 0xff, 0xff, 0xc7, 0xe0, 0x7f, 
+0xff, 0xdf, 0xf8, 0x3f, 0xff, 0x1f, 0xff, 0x9f, 0xfc, 0x3f, 0xff, 0xcf, 0xe0, 0x7f, 0xdf, 0xc7, 0xc0, 0xff, 0x9f, 0xc3, 0x9f, 0xff, 0x1f, 0xf9, 
+0x3f, 0xff, 0x1f, 0xfc, 0x3f, 0xfe, 0x1f, 0xfc, 0x3f, 0xfb, 0x1f, 0xfc, 0x9f, 0xf3, 0x3b, 0xf9, 0xc0, 0x63, 0xf3, 0x03, 0xe0, 0x63, 0xe3, 0x87, 
+0xff, 0xc3, 0xe3, 0xff, 0xff, 0xe7, 0xc3, 0xff, 0xff, 0xe7, 0xe3, 0xff, 0xff, 0xff, 0xe7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 WiFiClient client; // wifi client object
 #include "imglib/gridicons_align_right.h"
 
 void setup() { 
   Serial.begin(115200);
-  display.init();
-  display.fillScreen(GxEPD_RED); // No need to do this. Init cleans screen 
-  display.setTextColor(GxEPD_WHITE);
-  display.setFont(&FreeSans9pt7b);
-  display.setCursor(0, 12);
-  display.setRotation(3); // Right setup to get KEY1 on top
-  display.println("\n\r           FASAREK CORP\n\r");
-  display.setTextColor(GxEPD_BLACK);
-  display.println("\nReading weather data from:");
-  display.println(wxserver);
-  display.println("\n\rCity: "+City+", "+Country);
-  display.update();
-
   StartWiFi(ssid,password);
-  obtain_time(); // Dies
+  currentTime = obtain_time();
   
-  //obtain_forecast("forecast");
-  //DisplayForecast();
-  ESP.deepSleep(0); // ESP Wakes up and starts the complete sketch so it makes no sense to make a loop here
+  display.init();
+  display.setRotation(3); // Right setup to get KEY1 on top. Funny to comment it and see how it works ;)
+  display.setFont(&FreeSans9pt7b);
+  
+  if (skipLoadingScreen == false) {
+    display.fillScreen(GxEPD_RED); // No need to do this. Init cleans screen 
+    display.setTextColor(GxEPD_WHITE);
+    display.setCursor(0, 12);
+    display.println("\n\r            FASAREK CORP\n\r");
+    display.setTextColor(GxEPD_BLACK);
+    display.println("\nReading weather data from:");
+    display.println(wxserver);
+    display.println("City: "+City+", "+Country);
+    display.setTextColor(GxEPD_WHITE);
+    display.println("Time: "+currentTime);
+    display.update();
+  }
+  obtain_forecast("forecast");
+  DisplayForecast();
+
+  Serial.print("currentTime = "+currentTime);
+  
+// Start HTTP server
+  server.onNotFound(handle_http_not_found);
+  server.on("/", handle_http_root);  
+  server.on("/lcd-write", handleLcdWrite);
+
+  //display.powerDown();
+  //ESP.deepSleep(0); // ESP Wemos deep sleep. Wakes up and starts the complete sketch so it makes no sense to make a loop here
   }
 
-void loop() {
-//    obtain_forecast("forecast");
-//    obtain_forecast("astronomy");
-}
 
 void DisplayForecast(){ // Display is 264x176 resolution
-  display.fillScreen(GxEPD_WHITE);
+  //display.fillScreen(GxEPD_WHITE);
   display.setTextColor(GxEPD_BLACK);
   display.setCursor(0,12);
-  DisplayWXicon(0,0, Icon0);  DisplayWXicon(75,0, "thermo"); DisplayWXicon(139,0, "probrain");
+  DisplayWXicon(14,15, Icon0);  DisplayWXicon(77,0, "thermo"); DisplayWXicon(139,0, "probrain");
+  
   display.setTextColor(GxEPD_RED);
-  display.setCursor(175,12);  display.println(Day0);
+  display.setCursor(176,12); display.println(Day0);
+  display.setFont(NULL);
+  display.setCursor(233,23); display.println(currentTime); // HH:mm
   display.setTextColor(GxEPD_BLACK);
-  display.setCursor(174,28);  display.println(Conditions0);
+  
+  display.setCursor(75,42);  display.println(Conditions0);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,40);   display.println(High0 + "/" + Low0);
   display.setCursor(105,40);  display.println(Averagehumidity0 + "%");
   display.setCursor(148,40);  display.println(Pop0 + "%");
-  display.setCursor(60,55); display.println(F("--------------------------"));
  
-  DisplayWXicon(0,60, Icon1); DisplayWXicon(75,60, "thermo"); DisplayWXicon(139,60, "probrain");
+  DisplayWXicon(13,76, Icon1); DisplayWXicon(75,60, "thermo"); DisplayWXicon(139,60, "probrain");
   display.setCursor(175,72);  display.println(Day1);
-  display.setCursor(174,88);  display.println(Conditions1);
+  display.setFont(NULL);
+  display.setCursor(75,105);  display.println(Conditions1);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,100);  display.println(High1 + "/" + Low1);
   display.setCursor(105,100); display.println(Averagehumidity1 + "%");
   display.setCursor(148,100); display.println(Pop1 + "%");
-  display.setCursor(60,115);  display.println(F("-------------------------"));
-  DisplayWXicon(0,118, Icon2); DisplayWXicon(75,118, "thermo"); DisplayWXicon(139,118, "probrain");
+  
+  DisplayWXicon(10,142, Icon2); DisplayWXicon(75,118, "thermo"); DisplayWXicon(139,118, "probrain");
   display.setCursor(175,132); display.println(Day2);
-  display.setCursor(52,172); display.println(Conditions2);
+  display.setFont(NULL);
+  display.setCursor(75,162); display.println(Conditions2);
+  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,157);  display.println(High2 + "/" + Low2);
   display.setCursor(105,157); display.println(Averagehumidity2 + "%");
   display.setCursor(148,157); display.println(Pop2 + "%"); 
@@ -190,54 +215,56 @@ void DisplayWXicon(int x, int y, String IconName){
   else     Nodata(x,y,scale);
 }
 
-void obtain_time() {
-  static char RxBuf[8704];
-  String host = "timezoneapi.io";
-  String url = "/api/timezone/?Europe/Berlin";
+String obtain_time() {
+  String host = "slosarek.eu";
+  String url = "/api/time.php";
     
-  // Use WiFiClientSecure class to create TLS connection
-  WiFiClientSecure httpclient;
-
+  // Use WiFiClientSecure class if you need to create TLS connection
+  //WiFiClient httpclient;
+  
   String request;
   request  = "GET "+url+" HTTP/1.1\r\n";
-  request += F("Accept: */*\r\n");
+  request += "Accept: */*\r\n";
   request += "Host: " +host+ "\r\n";
-  request += F("Connection: close\r\n");
-  request += F("\r\n");
+  request += "Connection: close\r\n";
+  request += "\r\n";
   Serial.println(request);
-  Serial.print(F("Connecting to ")); Serial.println(host);
-  if (!httpclient.connect(host, 443)) {
-    Serial.println(F("connection failed"));
-    httpclient.flush();
-    httpclient.stop();
-    return;
+  
+  if (! client.connect(host, 80)) {
+    Serial.println("connection failed");
+    client.flush();
+    client.stop();
+    return "connection failed";
   }
-  httpclient.print(request); //send the http request to the server
-  httpclient.flush();
+  client.print(request); //send the http request to the server
+  client.flush();
   
     unsigned long timeout = millis();
-  while (httpclient.available() == 0) {
+  while (client.available() == 0) {
     if (millis() - timeout > 5000) {
       Serial.println(">>> Client Timeout !");
       client.stop();
-      return;
+      return "Client timeout";
     }
   }
+  
+  bool   skip_headers = true;
+  String rx_line;
   String response;
-  bool     skip_headers = true;
-  String   rx_line;
+  
   // Read all the lines of the reply from server and print them to Serial
-  while(httpclient.available()){
-    rx_line = httpclient.readStringUntil('\r');
+  while(client.available()){
+    rx_line = client.readStringUntil('\r');
     if (rx_line.length() <= 1) { // a blank line denotes end of headers
         skip_headers = false;
       }
+      // Collect http response
      if (!skip_headers) {
-      response += rx_line;
+            response += rx_line;
      }
   }
-  
-  Serial.print(response);
+  response.trim();
+  return response;
 }
 
 
@@ -419,6 +446,26 @@ int StartWiFi(const char* ssid, const char* password){
  }
  Serial.println("WiFi connected\r\nIP address: ");
  Serial.println(WiFi.localIP());
+
+   // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "esp8266.local"
+  // - second argument is the IP address to advertise
+  //   we send our IP address on the WiFi network
+  if (!MDNS.begin(domainName)) {
+    Serial.println("Error setting up MDNS responder!");
+    while(1) { 
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started");
+  
+  // Start TCP (HTTP) server
+  server.begin();
+  Serial.println("TCP server started");
+  
+  // Add service to MDNS-SD
+  MDNS.addService("http", "tcp", 80);
  return 1;
 }
 
@@ -561,6 +608,26 @@ void Fog(int x, int y, int scale){
   addfog(x,y,scale);
 }
 
+void handle_http_not_found() {
+  server.send(404, "text/plain", "Not Found");
+}
+
+void handle_http_root() {
+
+  String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
+  headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
+  String html = "<body><div class='container-fluid'><div class='row'>";
+  html += "<div class='row'><div class='col-md-6'><h4>carlos.local</h4><br>";
+  html += "</div><div class='col-md-6'><h4>Message to Display:</h4>";
+  html += "<br><form action='/lcd-write' target='frame' method='POST'>";
+  html += "<textarea name='text' rows=6 class='form-control'></textarea>";
+  html += "<input type='submit' value='Send to display' class='btn btn-success'><form><br>";
+  html += "</div></div></div></body>";
+  html += "<iframe name='frame'></iframe>";
+  server.send(200, "text/html", headers + html);
+}
+
+
 void Nodata(int x, int y, int scale){
   if (scale == 10) display.setTextSize(3); else display.setTextSize(1);
   display.setCursor(x,y);
@@ -568,6 +635,24 @@ void Nodata(int x, int y, int scale){
   display.setTextSize(1);
 }
 
-//###########################################################################
+void handleLcdWrite() {
+  display.setCursor(0,12);
+  // Analizo el POST iterando cada value
+  if (server.args() > 0) {
+    for (byte i = 0; i < server.args(); i++) {
+      if (server.argName(i) == "text") {
+        display.print(server.arg(i));
+      }
+    }
+  }
+  display.update();
+  server.send(200, "text/html", "Texto enviado al display");
+}
+
+void loop() {
+
+  server.handleClient();
+  
+}
 
 
