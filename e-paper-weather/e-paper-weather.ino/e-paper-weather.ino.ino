@@ -62,7 +62,9 @@ String API_key       = "ecfde31ed95eb892";            // See: http://www.wunderg
 String Conditions    = "conditions";                  // See: http://www.wunderground.com/weather/api/d/docs?d=data/index&MR=1
 char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnderGround
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
-const unsigned long  postingInterval    = 15L*60L*1000L; // Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
+
+//unsigned long  startMillis = millis();
+const unsigned long  serverDownTime = millis() + 2*60*1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
 String Units      =  "M"; // M for Metric, X for Mixed and I for Imperial
 
 //################ PROGRAM VARIABLES and OBJECTS ################
@@ -129,8 +131,9 @@ void setup() {
   server.onNotFound(handle_http_not_found);
   server.on("/", handle_http_root);  
   server.on("/lcd-write", handleLcdWrite);
-
-  //display.powerDown();
+  delay(3000);
+  server.begin(); // not needed?
+  // Moved to loop()
   //ESP.deepSleep(0); // ESP Wemos deep sleep. Wakes up and starts the complete sketch so it makes no sense to make a loop here
   }
 
@@ -617,8 +620,8 @@ void handle_http_root() {
   String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><div class='container-fluid'><div class='row'>";
-  html += "<div class='row'><div class='col-md-6'><h4>carlos.local</h4><br>";
-  html += "</div><div class='col-md-6'><h4>Message to Display:</h4>";
+  html += "<div class='col-md-6'><h4>carlos.local</h4><br>";
+  html += "<h5>Message to Display:</h5>";
   html += "<br><form action='/lcd-write' target='frame' method='POST'>";
   html += "<textarea name='text' rows=6 class='form-control'></textarea>";
   html += "<input type='submit' value='Send to display' class='btn btn-success'><form><br>";
@@ -651,8 +654,14 @@ void handleLcdWrite() {
 
 void loop() {
 
+// Add  milisec comparison to make server work for 1 min / 90 sec
+if (millis() < serverDownTime) {
   server.handleClient();
-  
+} else {
+  Serial.println(" Server going down");
+  display.powerDown();
+  ESP.deepSleep(0);
 }
 
+}
 
