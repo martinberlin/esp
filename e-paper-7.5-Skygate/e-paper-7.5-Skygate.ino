@@ -364,7 +364,7 @@ void url_to_display(String url) {
 
 void handleImageTest() {
   String host = "slosarek.eu";
-  String image = "/api/uploads/luckycloud.bmp";
+  String image = "/api/uploads/luckycloud.bmp"; // berliner-bw.bmp
 
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
@@ -399,13 +399,13 @@ void handleImageTest() {
     }
   }
 
-  bool   skip_headers = true;
-  String rx_line;
-  String response;
-  long bytesRead = 0;
+
   uint8_t buffer[3 * SD_BUFFER_PIXELS]; // pixel buffer, size for r,g,b
   int displayWidth = display.width();
   int displayHeight= display.height();
+Serial.println("Display width/height:"+ String(displayWidth) +" x "+String(displayHeight) );
+
+  long bytesRead = 32; // summing the whole read headers
   // Read all the lines of the reply from server and print them to Serial
   while (client.available()) {
 
@@ -436,12 +436,14 @@ void handleImageTest() {
       }
       uint16_t w = width;
       uint16_t h = height;
-      if ((x + w - 1) >= displayWidth)  w = displayWidth- x;
-      if ((y + h - 1) >= displayHeight) h = displayHeight - y;
+      // Attempt to move pointer where image starts
+      client.readBytes(buffer, imageOffset-bytesRead); 
       size_t buffidx = sizeof(buffer); // force buffer load
       
       for (uint16_t row = 0; row < h; row++) // for each line
       {
+        //pos = imageOffset + (height - 1 - row) * rowSize;
+        //Serial.println(pos);
         uint8_t bits;
         
         for (uint16_t col = 0; col < w; col++) // for each pixel
@@ -464,6 +466,7 @@ void handleImageTest() {
                 }
                 uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
                 display.drawPixel(col, displayHeight-row, bw_color);
+                //Serial.println("c:"+ String(col));
                 bits <<= 1;
               }
               break;
