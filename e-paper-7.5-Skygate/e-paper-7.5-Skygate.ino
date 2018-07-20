@@ -26,8 +26,11 @@
 #include <Fonts/OpenSans_Regular7pt8b.h>
 #include <Fonts/OpenSans_Regular10pt8b.h>
 
-const char* ssid     = "AndroidAP";
-const char* password = "fasfasnar";
+const char* ssid     = "KabelBox-A210"; // Casa Berlin
+const char* password = "14237187131701431551";
+
+//const char* ssid     = "AndroidAP";
+//const char* password = "fasfasnar";
 
 const char* domainName = "display"; // mDNS: display.local
 
@@ -92,8 +95,9 @@ void setup() {
   server.on("/", handle_http_root);
   server.on("/display-write", handleDisplayWrite);
   server.on("/display-clean", handleDisplayClean);
+  server.on("/web-image", handleWebToDisplay);
+  
   server.on("/deep-sleep", handleDeepSleep);
-  server.on("/image-test",handleImageTest);
   
   delay(1000);
   server.begin(); // not needed?
@@ -242,13 +246,13 @@ void handle_http_root() {
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><div class='container-fluid'><div class='row'>";
   html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
-  html += "<br><form action='/display-write' target='frame' method='POST'>";
+  html += "<br><form id='f' action='/display-write' target='frame' method='POST'>";
   html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' class='form-control'><br>";
-  html += "<input type='submit' value='Website text to display' class='btn btn-dark'>";
+  html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/web-image\"' value='Website screenshot' class='btn btn-dark'>&nbsp;";
+  
+  html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/display-write\"' value='Website text to display' class='btn btn-dark'>&nbsp;";
   html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br>";
   html += "<label for='title'>Title:</label><input onblur='document.getElementById(\"url\").value = \"\"' id='title' name='title' class='form-control'><br>";
-
-  html += "<a href='/image-test' target='frame'>Download test image</a><br>";
   html += "<textarea placeholder='Content' name='text' rows=6 class='form-control'></textarea>";
   html += "<input type='submit' value='Send to display' class='btn btn-success'><form>";
 
@@ -362,10 +366,23 @@ void url_to_display(String url) {
 }
 
 
-void handleImageTest() {
+void handleWebToDisplay() {
+  String url = "";
+  if (server.args() > 0) {
+    for (byte i = 0; i < server.args(); i++) {
+      if (server.argName(i) == "url" && server.arg(i) != "") {
+        url = server.arg(i);
+      }
+    }
+  }
+    if (url == "") {
+      display.println("No Url received");
+      display.update();
+      return;
+    }
   String host = "slosarek.eu";
-  String image = "/api/uploads/luckycloud.bmp"; // berliner-bw.bmp
-
+  String image = "/api/web-image/?u=" + url;
+   
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
   request += "Accept: */*\r\n";
