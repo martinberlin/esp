@@ -364,7 +364,7 @@ void url_to_display(String url) {
 
 void handleImageTest() {
   String host = "slosarek.eu";
-  String image = "/api/uploads/berliner-bw.bmp";
+  String image = "/api/uploads/luckycloud.bmp";
 
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
@@ -382,11 +382,12 @@ void handleImageTest() {
   }
   client.print(request); //send the http request to the server
   client.flush();
-  uint8_t buffer[3 * SD_BUFFER_PIXELS]; // pixel buffer, size for r,g,b
+  display.fillScreen(GxEPD_WHITE);
+  
   uint8_t x = 0;
   uint8_t y = 0;
   bool valid = false; // valid format to be handled
-  bool flip = true; // bitmap is stored bottom-to-top
+  bool flip = false; // bitmap is stored bottom-to-top
   uint32_t pos = 0;
   uint32_t startTime = millis();
   unsigned long timeout = millis();
@@ -401,63 +402,44 @@ void handleImageTest() {
   bool   skip_headers = true;
   String rx_line;
   String response;
-  int lines_count = 0;
+  long bytesRead = 0;
   
   // Read all the lines of the reply from server and print them to Serial
   while (client.available()) {
-    if (skip_headers) {
-    rx_line = client.readStringUntil('\r');
-    Serial.println("H:"+rx_line);
-    if (rx_line.length() <= 1) { // a blank line denotes end of headers
-      skip_headers = false;
-    }
-    }
 
-    // Collect http response
-
-    if (!skip_headers) {
-       Serial.println("Headers readed start reading BMP. read16:");
-    // START of test Bitmap:  Parse BMP header
-
- // if (read16() == 0x4D42) { // BMP signature
-  
+  if (read16() == 0x4D42) { // BMP signature
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
     uint32_t imageOffset = read32(); // Start of image data
     uint32_t headerSize = read32();
-    uint32_t width  = 640; //read32();
-    uint32_t height = 384; //read32();
+    uint32_t width  = read32();
+    uint32_t height = read32();
     uint16_t planes = read16();
-    uint16_t depth = 1; //read16(); // bits per pixel
+    uint16_t depth = read16(); // bits per pixel
     uint32_t format = read32();
-    //if ((planes == 1) && (format == 0)) { // uncompressed is handled
-   
+    
+    if ((planes == 1) && (format == 0)) { // uncompressed is handled
       Serial.print("File size: "); Serial.println(fileSize);
       Serial.print("Image Offset: "); Serial.println(imageOffset);
       Serial.print("Header size: "); Serial.println(headerSize);
       Serial.print("Width * Height: "); Serial.print(String(width) + " x " + String(height));
-      Serial.print("Bit Depth: "); Serial.println(depth);
-
+      Serial.print(" / Bit Depth: "); Serial.println(depth);
+      Serial.print("Planes: "); Serial.println(planes);Serial.print("Format: "); Serial.println(format);
       // BMP rows are padded (if needed) to 4-byte boundary
       uint32_t rowSize = (width * depth / 8 + 3) & ~3;
       if (height < 0)
       {
         height = -height;
-        flip = false;
       }
       uint16_t w = width;
       uint16_t h = height;
       if ((x + w - 1) >= display.width())  w = display.width()  - x;
       if ((y + h - 1) >= display.height()) h = display.height() - y;
-      size_t buffidx = sizeof(buffer); // force buffer load
+      
       for (uint16_t row = 0; row < h; row++) // for each line
       {
-        if (flip) // Bitmap is stored bottom-to-top order (normal BMP)
-          pos = imageOffset + (height - 1 - row) * rowSize;
-        else     // Bitmap is stored top-to-bottom
-          pos = imageOffset + row * rowSize;
-        
         uint8_t bits;
+        
         for (uint16_t col = 0; col < w; col++) // for each pixel
         {
           
@@ -469,12 +451,14 @@ void handleImageTest() {
                 if (0 == col % 8)
                 {
                   bits = client.read();
+                  bytesRead++;
                 }
                 uint16_t bw_color = bits & 0x80 ? GxEPD_WHITE : GxEPD_BLACK;
                 display.drawPixel(col, row, bw_color);
                 bits <<= 1;
               }
               break;
+              
             case 24: // standard BMP format
               {
                 valid = true;
@@ -483,25 +467,29 @@ void handleImageTest() {
                 uint16_t r = client.read();
                 uint16_t bw_color = ((r + g + b) / 3 > 0xFF  / 2) ? GxEPD_WHITE : GxEPD_BLACK;
                 display.drawPixel(col, row, bw_color);
+                bytesRead = bytesRead +3;
               }
               break;
           }
         } // end pixel
       } // end line
 
-//    }
-//}
-//client.read();
-// END Of test bitmap
-       lines_count++;
+       server.send(200, "text/html", "Image sent to display");
+       Serial.println("Bytes read:"+ String(bytesRead));
        display.update();
-       delay(1000);
-       return;
-      }
-      
+       client.stop();
+       break;
+       
+    } else {
+      display.print("Compressed BMP files are not handled");
+      display.update();
     }
+//}
 
-    
+
+      }
+  }
+         
 }
 
 
