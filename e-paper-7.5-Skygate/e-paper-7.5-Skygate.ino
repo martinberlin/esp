@@ -404,7 +404,8 @@ void handleImageTest() {
   String response;
   long bytesRead = 0;
   uint8_t buffer[3 * SD_BUFFER_PIXELS]; // pixel buffer, size for r,g,b
-  
+  int displayWidth = display.width();
+  int displayHeight= display.height();
   // Read all the lines of the reply from server and print them to Serial
   while (client.available()) {
 
@@ -435,8 +436,8 @@ void handleImageTest() {
       }
       uint16_t w = width;
       uint16_t h = height;
-      if ((x + w - 1) >= display.width())  w = display.width()  - x;
-      if ((y + h - 1) >= display.height()) h = display.height() - y;
+      if ((x + w - 1) >= displayWidth)  w = displayWidth- x;
+      if ((y + h - 1) >= displayHeight) h = displayHeight - y;
       size_t buffidx = sizeof(buffer); // force buffer load
       
       for (uint16_t row = 0; row < h; row++) // for each line
@@ -461,8 +462,8 @@ void handleImageTest() {
                   bits = buffer[buffidx++];
                   bytesRead++;
                 }
-                uint16_t bw_color = bits & 0x80 ? GxEPD_WHITE : GxEPD_BLACK;
-                display.drawPixel(col, row, bw_color);
+                uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
+                display.drawPixel(col, displayHeight-row, bw_color);
                 bits <<= 1;
               }
               break;
@@ -474,7 +475,7 @@ void handleImageTest() {
                 uint16_t g = buffer[buffidx++];
                 uint16_t r = buffer[buffidx++];
                 uint16_t bw_color = ((r + g + b) / 3 > 0xFF  / 2) ? GxEPD_WHITE : GxEPD_BLACK;
-                display.drawPixel(col, row, bw_color);
+                display.drawPixel(col, displayHeight-row, bw_color);
                 bytesRead = bytesRead +3;
               }
               break;
