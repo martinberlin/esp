@@ -13,22 +13,18 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
-#include <ArduinoJson.h>     // https://github.com/bblanchon/ArduinoJson
 #include <WiFiClient.h>
-#include "time.h"
 #include <SPI.h>
 #include <GxEPD.h>
 #include <GxGDEW075T8/GxGDEW075T8.cpp>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
-#include <pgmspace.h>
 // FONT used for title / message
-#include <Fonts/OpenSans_Regular7pt8b.h>
-#include <Fonts/OpenSans_Regular10pt8b.h>
+//#include <Fonts/OpenSans_Regular7pt8b.h>
+//#include <Fonts/OpenSans_Regular10pt8b.h>
 
 const char* ssid     = "KabelBox-A210"; // Casa Berlin
 const char* password = "14237187131701431551";
-
 //const char* ssid     = "AndroidAP";
 //const char* password = "fasfasnar";
 
@@ -38,15 +34,6 @@ const char* domainName = "display"; // mDNS: display.local
 // TCP server at port 80 will respond to HTTP requests
 ESP8266WebServer server(80);
 
-String City          = "Berlin";
-String Country       = "Germany";                     // Your country ES=Spain use %20 for spaces (should be urlencoded)
-boolean skipLoadingScreen = true;                   // Skips loading screen and makes it faster
-
-//################# LIBRARIES ##########################
-String version = "1.1";       // Version of this program
-//################ VARIABLES ###########################
-
-// pins_arduino.h, e.g. WEMOS D1 Mini
 //CLK  = D8; D
 //DIN  = D7; D
 //BUSY = D6; D
@@ -57,8 +44,6 @@ String version = "1.1";       // Version of this program
 GxIO_Class io(SPI, D0, D3, D4);
 // GxGDEP015OC1(GxIO& io, uint8_t rst = D4, uint8_t busy = D2);
 GxEPD_Class display(io, D4, D6 );
-
-unsigned long  lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
 
 //unsigned long  startMillis = millis();
 const unsigned long  serverDownTime = millis() + 30 * 60 * 1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
@@ -72,76 +57,21 @@ void setup() {
 
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
-  display.setFont(&OpenSans_Regular10pt8b);
+  //display.setFont(&OpenSans_Regular10pt8b);
 
   display.setTextColor(GxEPD_BLACK);
   //  Serial.print("currentTime = "+currentTime); // disabled call obtain_time() function to get current HH:mm
 
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
+  // Routing
   server.on("/", handle_http_root);
   server.on("/display-write", handleDisplayWrite);
   server.on("/display-clean", handleDisplayClean);
   server.on("/web-image", handleWebToDisplay);
-  
   server.on("/deep-sleep", handleDeepSleep);
   
-  delay(1000);
-  server.begin(); // not needed?
-  // Moved to loop()
-  //ESP.deepSleep(0); // ESP Wemos deep sleep. Wakes up and starts the complete sketch so it makes no sense to make a loop here
-}
-
-String obtain_time() {
-  String host = "slosarek.eu";
-  String url = "/api/time.php";
-
-  // Use WiFiClientSecure class if you need to create TLS connection
-  //WiFiClient httpclient;
-
-  String request;
-  request  = "GET " + url + " HTTP/1.1\r\n";
-  request += "Accept: */*\r\n";
-  request += "Host: " + host + "\r\n";
-  request += "Connection: close\r\n";
-  request += "\r\n";
-  Serial.println(request);
-
-  if (! client.connect(host, 80)) {
-    Serial.println("connection failed");
-    client.flush();
-    client.stop();
-    return "connection failed";
-  }
-  client.print(request); //send the http request to the server
-  client.flush();
-
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 5000) {
-      Serial.println(">>> Client Timeout !");
-      client.stop();
-      return "Client timeout";
-    }
-  }
-
-  bool   skip_headers = true;
-  String rx_line;
-  String response;
-
-  // Read all the lines of the reply from server and print them to Serial
-  while (client.available()) {
-    rx_line = client.readStringUntil('\r');
-    if (rx_line.length() <= 1) { // a blank line denotes end of headers
-      skip_headers = false;
-    }
-    // Collect http response
-    if (!skip_headers) {
-      response += rx_line;
-    }
-  }
-  response.trim();
-  return response;
+  server.begin(); 
 }
 
 int StartWiFi(const char* ssid, const char* password) {
@@ -184,45 +114,6 @@ int StartWiFi(const char* ssid, const char* password) {
   return 1;
 }
 
-void clear_screen() {
-  display.fillScreen(GxEPD_WHITE);
-  display.update();
-}
-
-
-//###########################################################################
-// Symbols are drawn on a relative 10x15 grid and 1 scale unit = 1 drawing unit
-void addcloud(int x, int y, int scale) {
-  int linesize = 3;
-  //Draw cloud outer
-  display.fillCircle(x - scale * 3, y, scale, GxEPD_BLACK);                       // Left most circle
-  display.fillCircle(x + scale * 3, y, scale, GxEPD_BLACK);                       // Right most circle
-  display.fillCircle(x - scale, y - scale, scale * 1.4, GxEPD_BLACK);            // left middle upper circle
-  display.fillCircle(x + scale * 1.5, y - scale * 1.3, scale * 1.75, GxEPD_BLACK); // Right middle upper circle
-  display.fillRect(x - scale * 3, y - scale, scale * 6, scale * 2 + 1, GxEPD_BLACK); // Upper and lower lines
-  //Clear cloud inner
-  display.fillCircle(x - scale * 3, y, scale - linesize, GxEPD_WHITE);            // Clear left most circle
-  display.fillCircle(x + scale * 3, y, scale - linesize, GxEPD_WHITE);            // Clear right most circle
-  display.fillCircle(x - scale, y - scale, scale * 1.4 - linesize, GxEPD_WHITE); // left middle upper circle
-  display.fillCircle(x + scale * 1.5, y - scale * 1.3, scale * 1.75 - linesize, GxEPD_WHITE); // Right middle upper circle
-  display.fillRect(x - scale * 3, y - scale + linesize, scale * 6, scale * 2 - linesize * 2 + 1, GxEPD_WHITE); // Upper and lower lines
-}
-
-void addtstorm(int x, int y, int scale) {
-  y = y + scale / 2;
-  for (int i = 0; i < 5; i++) {
-    display.drawLine(x - scale * 4 + scale * i * 1.5 + 0, y + scale * 1.5, x - scale * 3.5 + scale * i * 1.5 + 0, y + scale, GxEPD_BLACK);
-    display.drawLine(x - scale * 4 + scale * i * 1.5 + 1, y + scale * 1.5, x - scale * 3.5 + scale * i * 1.5 + 1, y + scale, GxEPD_BLACK);
-    display.drawLine(x - scale * 4 + scale * i * 1.5 + 2, y + scale * 1.5, x - scale * 3.5 + scale * i * 1.5 + 2, y + scale, GxEPD_BLACK);
-    display.drawLine(x - scale * 4 + scale * i * 1.5, y + scale * 1.5 + 0, x - scale * 3 + scale * i * 1.5 + 0, y + scale * 1.5 + 0, GxEPD_BLACK);
-    display.drawLine(x - scale * 4 + scale * i * 1.5, y + scale * 1.5 + 1, x - scale * 3 + scale * i * 1.5 + 0, y + scale * 1.5 + 1, GxEPD_BLACK);
-    display.drawLine(x - scale * 4 + scale * i * 1.5, y + scale * 1.5 + 2, x - scale * 3 + scale * i * 1.5 + 0, y + scale * 1.5 + 2, GxEPD_BLACK);
-    display.drawLine(x - scale * 3.5 + scale * i * 1.4 + 0, y + scale * 2.5, x - scale * 3 + scale * i * 1.5 + 0, y + scale * 1.5, GxEPD_BLACK);
-    display.drawLine(x - scale * 3.5 + scale * i * 1.4 + 1, y + scale * 2.5, x - scale * 3 + scale * i * 1.5 + 1, y + scale * 1.5, GxEPD_BLACK);
-    display.drawLine(x - scale * 3.5 + scale * i * 1.4 + 2, y + scale * 2.5, x - scale * 3 + scale * i * 1.5 + 2, y + scale * 1.5, GxEPD_BLACK);
-  }
-}
-
 void handle_http_not_found() {
   server.send(404, "text/plain", "Not Found");
 }
@@ -237,7 +128,6 @@ void handle_http_root() {
   html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' class='form-control'><br>";
   html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/web-image\"' value='Website screenshot' class='btn btn-dark'>&nbsp;";
   
-  html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/display-write\"' value='Website text to display' class='btn btn-dark'>&nbsp;";
   html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br>";
   html += "<label for='title'>Title:</label><input onblur='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'' id='title' name='title' class='form-control'><br>";
   html += "<textarea placeholder='Content' name='text' rows=6 class='form-control' onfocus='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'></textarea>";
@@ -270,20 +160,13 @@ void handleDisplayWrite() {
   if (server.args() > 0) {
     for (byte i = 0; i < server.args(); i++) {
 
-      if (server.argName(i) == "url" && server.arg(i) != "") {
-        display.setCursor(0, 23);
-        url_to_display(server.arg(i));
-        display.update();
-        break;
-      }
-
       if (server.argName(i) == "title") {
-        display.setFont(&OpenSans_Regular10pt8b);
+        //display.setFont(&OpenSans_Regular10pt8b);
         display.setCursor(0, 33);
         display.print(server.arg(i));
       }
       if (server.argName(i) == "text") {
-        display.setFont(&OpenSans_Regular7pt8b);
+        //display.setFont(&OpenSans_Regular7pt8b);
         display.setCursor(0, 63);
         display.print(server.arg(i));
       }
@@ -339,10 +222,10 @@ void url_to_display(String url) {
 
       if (rx_line != "" && rx_line != "-") {
         if (lines_count < 2) {
-          display.setFont(&OpenSans_Regular10pt8b);
+          //display.setFont(&OpenSans_Regular10pt8b);
         }
         if (lines_count == 2) {
-          display.setFont(&OpenSans_Regular7pt8b);
+          //display.setFont(&OpenSans_Regular7pt8b);
         }
         display.println(rx_line);
         lines_count++;
@@ -352,8 +235,6 @@ void url_to_display(String url) {
   }
   //response.trim();
 }
-
-
 void handleWebToDisplay() {
   String url = "";
   if (server.args() > 0) {
@@ -393,7 +274,7 @@ void handleWebToDisplay() {
   uint8_t y = 0;
   bool valid = false; // valid format to be handled
   bool flip = false; // bitmap is stored bottom-to-top
-  uint32_t pos = 0;
+ 
   uint32_t startTime = millis();
   unsigned long timeout = millis();
   while (client.available() == 0) {
@@ -403,15 +284,13 @@ void handleWebToDisplay() {
       return;
     }
   }
-
-
-  uint8_t buffer[3 * SD_BUFFER_PIXELS]; // pixel buffer, size for r,g,b
+  uint8_t buffer[3 * 10]; // pixel buffer, size for r,g,b
   int displayWidth = display.width();
   int displayHeight= display.height();
-Serial.println("Display width/height:"+ String(displayWidth) +" x "+String(displayHeight) );
 
   long bytesRead = 32; // summing the whole read headers
   // Read all the lines of the reply from server and print them to Serial
+  
   while (client.available()) {
 
   if (read16() == 0x4D42) { // BMP signature
@@ -425,15 +304,17 @@ Serial.println("Display width/height:"+ String(displayWidth) +" x "+String(displ
     uint16_t depth = read16(); // bits per pixel
     uint32_t format = read32();
     
-    if ((planes == 1) && (format == 0)) { // uncompressed is handled
-      Serial.print("File size: "); Serial.println(fileSize);
+      Serial.print("BMP read. File size: "); Serial.println(fileSize);
       Serial.print("Image Offset: "); Serial.println(imageOffset);
       Serial.print("Header size: "); Serial.println(headerSize);
       Serial.print("Width * Height: "); Serial.print(String(width) + " x " + String(height));
       Serial.print(" / Bit Depth: "); Serial.println(depth);
       Serial.print("Planes: "); Serial.println(planes);Serial.print("Format: "); Serial.println(format);
+    
+    if ((planes == 1) && (format == 0)) { // uncompressed is handled
+
       // BMP rows are padded (if needed) to 4-byte boundary
-      uint32_t rowSize = (width * depth / 8 + 3) & ~3;
+      //uint32_t rowSize = (width * depth / 8 + 3) & ~3;
       if (height < 0)
       {
         height = -height;
@@ -447,8 +328,6 @@ Serial.println("Display width/height:"+ String(displayWidth) +" x "+String(displ
       
       for (uint16_t row = 0; row < h; row++) // for each line
       {
-        //pos = imageOffset + (height - 1 - row) * rowSize;
-        //Serial.println(pos);
         uint8_t bits;
         
         for (uint16_t col = 0; col < w; col++) // for each pixel
@@ -475,7 +354,19 @@ Serial.println("Display width/height:"+ String(displayWidth) +" x "+String(displ
                 bits <<= 1;
               }
               break;
-              
+            case 4: // 4 work in progress
+              {
+                valid = true;
+                if (0 == col % 2) {
+                  bits = buffer[buffidx++];
+                  bytesRead++;
+                }
+                uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
+                display.drawPixel(col, displayHeight-row, bw_color);
+                
+                bits <<= 2;
+              }
+              break;
             case 24: // standard BMP format
               {
                 valid = true;
@@ -516,6 +407,7 @@ uint16_t read16()
   uint16_t result;
   ((uint8_t *)&result)[0] = client.read(); // LSB
   ((uint8_t *)&result)[1] = client.read(); // MSB
+  //Serial.print(result, HEX);
   return result;
 }
 
