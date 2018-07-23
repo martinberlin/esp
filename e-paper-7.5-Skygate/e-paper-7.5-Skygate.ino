@@ -67,8 +67,9 @@ void setup() {
   // Routing
   server.on("/", handle_http_root);
   server.on("/display-write", handleDisplayWrite);
-  server.on("/display-clean", handleDisplayClean);
   server.on("/web-image", handleWebToDisplay);
+  server.on("/display-clean", handleDisplayClean);
+  
   server.on("/deep-sleep", handleDeepSleep);
   
   server.begin(); 
@@ -124,14 +125,15 @@ void handle_http_root() {
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><div class='container-fluid'><div class='row'>";
   html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
-  html += "<br><form id='f' action='/display-write' target='frame' method='POST'>";
+  html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
   html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' class='form-control'><br>";
-  html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/web-image\"' value='Website screenshot' class='btn btn-dark'>&nbsp;";
-  
-  html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br>";
-  html += "<label for='title'>Title:</label><input onblur='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'' id='title' name='title' class='form-control'><br>";
+  html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>&nbsp;";
+  // onclick='document.getElementById(\"url\").value = \"\"'
+  html += "<input type='button' value='Clean Url' class='btn btn-default'><br><br></form>";
+  html += "<br><form id='f' action='/display-write' target='frame' method='POST'>";
+  html += "<label for='title'>Title:</label><input onfocus='document.getElementById(\"url\").value = \"\"' id='title' name='title' class='form-control'><br>";
   html += "<textarea placeholder='Content' name='text' rows=6 class='form-control' onfocus='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'></textarea>";
-  html += "<input type='submit' value='Send to display' class='btn btn-success'><form>";
+  html += "<input type='submit' value='Send to display' class='btn btn-success'></form>";
 
   html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br><br><br>";
   html += "</div></div></div>";
@@ -356,20 +358,20 @@ void handleWebToDisplay() {
               break;
             case 4: // 4 work in progress
               {
-                valid = true;
                 if (0 == col % 2) {
                   bits = buffer[buffidx++];
                   bytesRead++;
-                }
-                uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
+                }   
+                bits <<= 1;           
+                bits <<= 1;
+                uint16_t bw_color = bits > 0x80 ? GxEPD_WHITE : GxEPD_BLACK;
                 display.drawPixel(col, displayHeight-row, bw_color);
-                
-                bits <<= 2;
+                bits <<= 1;
+                bits <<= 1;
               }
               break;
             case 24: // standard BMP format
               {
-                valid = true;
                 uint16_t b = buffer[buffidx++];
                 uint16_t g = buffer[buffidx++];
                 uint16_t r = buffer[buffidx++];
