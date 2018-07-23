@@ -23,7 +23,8 @@
 #include "time.h"
 #include <SPI.h>
 #include <GxEPD.h>
-#include <GxGDEW027C44/GxGDEW027C44.cpp>
+//#include <GxGDEW027C44/GxGDEW027C44.cpp>
+#include <GxGDEW027W3/GxGDEW027W3.cpp>
 #include <Fonts/FreeSans9pt7b.h>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
@@ -32,6 +33,8 @@
 
 const char* ssid     = "JAZZTEL_0D36";
 const char* password = "quiero mucho al leon";
+//const char* password = "8zDXHWtWFSdb3ZgX3FM9"; // Lloret
+
 const char* domainName= "carlos";  // mDNS: carlos.local
 // TCP server at port 80 will respond to HTTP requests
 //WiFiServer server(80);
@@ -64,7 +67,7 @@ char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnde
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
 
 //unsigned long  startMillis = millis();
-const unsigned long  serverDownTime = millis() + 2*60*1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
+const unsigned long  serverDownTime = millis() + 20*60*1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
 String Units      =  "M"; // M for Metric, X for Mixed and I for Imperial
 
 //################ PROGRAM VARIABLES and OBJECTS ################
@@ -131,7 +134,7 @@ void setup() {
   server.onNotFound(handle_http_not_found);
   server.on("/", handle_http_root);  
   server.on("/lcd-write", handleLcdWrite);
-  delay(3000);
+  delay(4000);
   server.begin(); // not needed?
   // Moved to loop()
   //ESP.deepSleep(0); // ESP Wemos deep sleep. Wakes up and starts the complete sketch so it makes no sense to make a loop here
@@ -144,7 +147,7 @@ void DisplayForecast(){ // Display is 264x176 resolution
   display.setCursor(0,12);
   DisplayWXicon(14,15, Icon0);  DisplayWXicon(77,0, "thermo"); DisplayWXicon(139,0, "probrain");
   
-  display.setTextColor(GxEPD_RED);
+  //display.setTextColor(GxEPD_RED);
   display.setCursor(176,12); display.println(Day0);
   display.setFont(NULL);
   display.setCursor(233,23); display.println(currentTime); // HH:mm
@@ -639,6 +642,7 @@ void Nodata(int x, int y, int scale){
 }
 
 void handleLcdWrite() {
+  display.fillScreen(GxEPD_WHITE);
   display.setCursor(0,12);
   // Analizo el POST iterando cada value
   if (server.args() > 0) {

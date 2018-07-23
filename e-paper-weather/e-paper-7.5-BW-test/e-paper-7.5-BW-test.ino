@@ -1,41 +1,44 @@
 /*########################   Weather Display  #############################
  * Receives and displays the weather forecast from the Weather Underground and then displays using a 
  * JSON decoder wx data to display on a web page using a webserver.
- * Weather data received via WiFi connection to Weather Underground Servers and using their 'Forecast' API and data
- * is decoded using Copyright Benoit Blanchon's (c) 2014-2017 excellent JSON library.
- * This source code is protected under the terms of the MIT License and is copyright (c) 2017 by David Bird and permission is hereby granted, free of charge, to
- * any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software
- * without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, but not to sub-license and/or 
- * to sell copies of the Software or to permit persons to whom the Software is furnished to do so, subject to the following conditions:
- *   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
- *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- *   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
- *   
- *   See more at http://dsbird.org.uk */
+Weather author at http://dsbird.org.uk 
+
+IP address: 
+192.168.43.115
+MAC: 
+84:F3:EB:5A:46:9B
+
+*/
        
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+
+#include <ESP8266WebServer.h>
 #include <ArduinoJson.h>     // https://github.com/bblanchon/ArduinoJson
 #include <WiFiClient.h>
 #include "time.h"
 #include <SPI.h>
 #include <GxEPD.h>
-#include <GxGDEW027C44/GxGDEW027C44.cpp>
-#include <Fonts/FreeSans9pt7b.h>
+#include <GxGDEW075T8/GxGDEW075T8.cpp>
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
 #include <pgmspace.h>
+// FONT used for title / message
+#include <Fonts/FreeSans24pt7b.h>
+#include <Fonts/FreeSans18pt7b.h>
 
 
-const char* ssid     = "JAZZTEL_0D36";
-const char* password = "quiero mucho al leon";
+const char* ssid     = "AndroidAP";
+const char* password = "fasfasnar";
 
-String City          = "Arenys%20de%20Mar";
-String Country       = "Spain";                     // Your country ES=Spain use %20 for spaces (should be urlencoded)   
+const char* domainName= "carlos";  // mDNS: carlos.local
+
+// TCP server at port 80 will respond to HTTP requests
+ESP8266WebServer server(80);
+
+String City          = "Berlin";
+String Country       = "DE";                     // Your country ES=Spain use %20 for spaces (should be urlencoded)   
 boolean skipLoadingScreen = true;                   // Skips loading screen and makes it faster
-
-//const char* ssid     = "KabelBox-A210"; // Casa Berlin
-//const char* password = "14237187131701431551";
 
 //################# LIBRARIES ##########################
 String version = "1.1";       // Version of this program
@@ -43,13 +46,13 @@ String version = "1.1";       // Version of this program
 
 // pins_arduino.h, e.g. WEMOS D1 Mini
 //static const uint8_t SS    = D8;
-//static const uint8_t MOSI  = D7;
-//static const uint8_t MISO  = ;
-//static const uint8_t SCK   = D5;
+//static const uint8_t MOSI  = D7 //DIN;
+//BUSY = D2; --> updated to D7
+//DIN  = D7;
 // GxIO_SPI(SPIClass& spi, int8_t cs, int8_t dc, int8_t rst = -1, int8_t bl = -1);
-GxIO_Class io(SPI, D8, D3, D4); 
+GxIO_Class io(SPI, D0, D3, D4); 
 // GxGDEP015OC1(GxIO& io, uint8_t rst = D4, uint8_t busy = D2);
-GxEPD_Class display(io, D4, D6); 
+GxEPD_Class display(io, D4, D6 ); 
 
 //------ NETWORK VARIABLES---------
 // Use your own API key by signing up for a free developer account at http://www.wunderground.com/weather/api/
@@ -58,7 +61,9 @@ String API_key       = "ecfde31ed95eb892";            // See: http://www.wunderg
 String Conditions    = "conditions";                  // See: http://www.wunderground.com/weather/api/d/docs?d=data/index&MR=1
 char   wxserver[]    = "api.wunderground.com";        // Address for WeatherUnderGround
 unsigned long        lastConnectionTime = 0;          // Last time you connected to the server, in milliseconds
-const unsigned long  postingInterval    = 15L*60L*1000L; // Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
+
+//unsigned long  startMillis = millis();
+const unsigned long  serverDownTime = millis() + 30*60*1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
 String Units      =  "M"; // M for Metric, X for Mixed and I for Imperial
 
 //################ PROGRAM VARIABLES and OBJECTS ################
@@ -97,36 +102,39 @@ WiFiClient client; // wifi client object
 void setup() { 
   Serial.begin(115200);
   StartWiFi(ssid,password);
-  currentTime = obtain_time();
   
   display.init();
-  display.setRotation(3); // Right setup to get KEY1 on top. Funny to comment it and see how it works ;)
-  display.setFont(&FreeSans9pt7b);
+  //display.setRotation(3); // Right setup to get KEY1 on top. Funny to comment it and see how it works ;)
+  display.setFont(&FreeSans18pt7b);
   
   if (skipLoadingScreen == false) {
-    display.fillScreen(GxEPD_RED); // No need to do this. Init cleans screen 
+    currentTime = obtain_time();
+    display.fillScreen(GxEPD_BLACK); // No need to do this. Init cleans screen 
     display.setTextColor(GxEPD_WHITE);
     display.setCursor(0, 12);
     display.println("\n\r            FASAREK CORP\n\r");
-    display.setTextColor(GxEPD_BLACK);
-    display.println("\nReading weather data from:");
-    display.println(wxserver);
-    display.println("City: "+City+", "+Country);
-    display.setTextColor(GxEPD_WHITE);
     display.println("Time: "+currentTime);
     display.update();
   }
-  obtain_forecast("forecast");
-  DisplayForecast();
+  display.setTextColor(GxEPD_BLACK);
+ // obtain_forecast("forecast");
+ // DisplayForecast();
 
   Serial.print("currentTime = "+currentTime);
-  ESP.deepSleep(0); // ESP Wakes up and starts the complete sketch so it makes no sense to make a loop here
+  
+// Start HTTP server
+  server.onNotFound(handle_http_not_found);
+  server.on("/", handle_http_root);  
+  server.on("/display-write", handleDisplayWrite);
+  server.on("/display-clean", handleDisplayClean);
+  server.on("/deep-sleep", handleDeepSleep);
+  server.on("/light-sleep", handleLightSleep);
+  delay(2000);
+  server.begin(); // not needed?
+  // Moved to loop()
+  //ESP.deepSleep(0); // ESP Wemos deep sleep. Wakes up and starts the complete sketch so it makes no sense to make a loop here
   }
 
-void loop() {
-//    obtain_forecast("forecast");
-//    obtain_forecast("astronomy");
-}
 
 void DisplayForecast(){ // Display is 264x176 resolution
   //display.fillScreen(GxEPD_WHITE);
@@ -134,32 +142,30 @@ void DisplayForecast(){ // Display is 264x176 resolution
   display.setCursor(0,12);
   DisplayWXicon(14,15, Icon0);  DisplayWXicon(77,0, "thermo"); DisplayWXicon(139,0, "probrain");
   
-  display.setTextColor(GxEPD_RED);
+
   display.setCursor(176,12); display.println(Day0);
   display.setFont(NULL);
   display.setCursor(233,23); display.println(currentTime); // HH:mm
   display.setTextColor(GxEPD_BLACK);
   
   display.setCursor(75,42);  display.println(Conditions0);
-  display.setFont(&FreeSans9pt7b);
+  
   display.setCursor(50,40);   display.println(High0 + "/" + Low0);
   display.setCursor(105,40);  display.println(Averagehumidity0 + "%");
   display.setCursor(148,40);  display.println(Pop0 + "%");
  
   DisplayWXicon(13,76, Icon1); DisplayWXicon(75,60, "thermo"); DisplayWXicon(139,60, "probrain");
   display.setCursor(175,72);  display.println(Day1);
-  display.setFont(NULL);
   display.setCursor(75,105);  display.println(Conditions1);
-  display.setFont(&FreeSans9pt7b);
+  
   display.setCursor(50,100);  display.println(High1 + "/" + Low1);
   display.setCursor(105,100); display.println(Averagehumidity1 + "%");
   display.setCursor(148,100); display.println(Pop1 + "%");
   
   DisplayWXicon(10,142, Icon2); DisplayWXicon(75,118, "thermo"); DisplayWXicon(139,118, "probrain");
   display.setCursor(175,132); display.println(Day2);
-  display.setFont(NULL);
+  
   display.setCursor(75,162); display.println(Conditions2);
-  display.setFont(&FreeSans9pt7b);
   display.setCursor(50,157);  display.println(High2 + "/" + Low2);
   display.setCursor(105,157); display.println(Averagehumidity2 + "%");
   display.setCursor(148,157); display.println(Pop2 + "%"); 
@@ -434,11 +440,37 @@ int StartWiFi(const char* ssid, const char* password){
  WiFi.begin(ssid, password);
  while (WiFi.status() != WL_CONNECTED ) {
    delay(500); Serial.print(".");
-   if(connAttempts > 20) return -5;
+   if(connAttempts > 30) {
+    Serial.println("ERROR connecting to WiFi failed");
+    return -5;
+   }
    connAttempts++;
  }
+// wifi_set_sleep_type(LIGHT_SLEEP_T);
  Serial.println("WiFi connected\r\nIP address: ");
  Serial.println(WiFi.localIP());
+Serial.println("MAC: ");
+ Serial.println(WiFi.macAddress());
+
+   // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "esp8266.local"
+  // - second argument is the IP address to advertise
+  //   we send our IP address on the WiFi network
+  if (!MDNS.begin(domainName)) {
+    Serial.println("Error setting up MDNS responder!");
+    while(1) { 
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started");
+  
+  // Start TCP (HTTP) server
+  server.begin();
+  Serial.println("TCP server started");
+  
+  // Add service to MDNS-SD
+  MDNS.addService("http", "tcp", 80);
  return 1;
 }
 
@@ -581,6 +613,30 @@ void Fog(int x, int y, int scale){
   addfog(x,y,scale);
 }
 
+void handle_http_not_found() {
+  server.send(404, "text/plain", "Not Found");
+}
+
+void handle_http_root() {
+
+  String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
+  headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
+  String html = "<body><div class='container-fluid'><div class='row'>";
+  html += "<div class='col-md-6'><h4>carlos.local</h4><br>";
+  html += "<h5>Message to Display:</h5>";
+  html += "<br><form action='/display-write' target='frame' method='POST'>";
+  html += "<label for='title'><input id='title' name='title' class='form-control'><br>";
+  html += "<textarea name='text' rows=6 class='form-control'></textarea>";
+  html += "<input type='submit' value='Send to display' class='btn btn-success'><form><br>";
+  html += "<a href='/display-clean' target='frame'>Clean screen</a><br>";
+  html += "<a href='/light-sleep' target='frame'>Light sleep</a><br>";
+  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
+  html += "</div></div></div></body>";
+  html += "<iframe name='frame'></iframe>";
+  server.send(200, "text/html", headers + html);
+}
+
+
 void Nodata(int x, int y, int scale){
   if (scale == 10) display.setTextSize(3); else display.setTextSize(1);
   display.setCursor(x,y);
@@ -588,6 +644,57 @@ void Nodata(int x, int y, int scale){
   display.setTextSize(1);
 }
 
-//###########################################################################
+void handleDeepSleep() {
+  ESP.deepSleep(20e6);
+  server.send(200, "text/html", "Going to deep-sleep");
+}
 
+void handleLightSleep() {
+  WiFi.forceSleepBegin(60000000);
+  server.send(200, "text/html", "WIFI to light-sleep");
+}
+
+void handleDisplayClean() {
+  display.fillScreen(GxEPD_WHITE);
+  // Test if german characters don't come because of a web encoding issue
+  // Characters are not there :( 
+  display.setCursor(0,33);
+  display.print("ä ö ü Ä Ö Ü €");
+  display.update();
+  server.send(200, "text/html", "Clearing display");
+}
+void handleDisplayWrite() {
+  display.fillScreen(GxEPD_WHITE);
+  
+  // Analizo el POST iterando cada value
+  if (server.args() > 0) {
+    for (byte i = 0; i < server.args(); i++) {
+      if (server.argName(i) == "title") {
+        display.setFont(&FreeSans24pt7b);
+        display.setCursor(0,33);
+        display.print(server.arg(i));
+      }
+      if (server.argName(i) == "text") {
+        display.setFont(&FreeSans18pt7b);
+        display.setCursor(0,63);
+        display.print(server.arg(i));
+      }
+    }
+  }
+  display.update();
+  server.send(200, "text/html", "Text sent to display");
+}
+
+void loop() {
+
+// Add  milisec comparison to make server work for 1 min / 90 sec
+if (millis() < serverDownTime) {
+  server.handleClient();
+} else {
+  Serial.println(" Server going down");
+  display.powerDown();
+  ESP.deepSleep(0);
+}
+
+}
 

@@ -71,24 +71,11 @@ void setup() {
   StartWiFi(ssid, password);
 
   display.init();
-  //display.setRotation(3); // Right setup to get KEY1 on top. Funny to comment it and see how it works ;)
+  display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&OpenSans_Regular10pt8b);
 
-  if (skipLoadingScreen == false) {
-    //currentTime = obtain_time();
-    display.fillScreen(GxEPD_BLACK); // No need to do this. Init cleans screen
-    display.setTextColor(GxEPD_WHITE);
-    display.setCursor(0, 12);
-    display.println("\n\r            FASAREK CORP\n\r");
-    //display.println("Time: " + currentTime);
-    display.update();
-  }
   display.setTextColor(GxEPD_BLACK);
-  // Does not work, creates endless loop
-  //  obtain_forecast("forecast");
-  //  DisplayForecast();
-
-  //  Serial.print("currentTime = "+currentTime);
+  //  Serial.print("currentTime = "+currentTime); // disabled call obtain_time() function to get current HH:mm
 
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
@@ -252,14 +239,15 @@ void handle_http_root() {
   
   html += "<input type='submit' onclick='document.getElementById(\"f\").action=\"/display-write\"' value='Website text to display' class='btn btn-dark'>&nbsp;";
   html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br>";
-  html += "<label for='title'>Title:</label><input onblur='document.getElementById(\"url\").value = \"\"' id='title' name='title' class='form-control'><br>";
-  html += "<textarea placeholder='Content' name='text' rows=6 class='form-control'></textarea>";
+  html += "<label for='title'>Title:</label><input onblur='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'' id='title' name='title' class='form-control'><br>";
+  html += "<textarea placeholder='Content' name='text' rows=6 class='form-control' onfocus='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'></textarea>";
   html += "<input type='submit' value='Send to display' class='btn btn-success'><form>";
 
   html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br><br><br>";
-  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
-  html += "</div></div></div></body>";
+  html += "</div></div></div>";
   html += "<iframe name='frame'></iframe>";
+  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
+  html += "</body>";
   server.send(200, "text/html", headers + html);
 }
 
