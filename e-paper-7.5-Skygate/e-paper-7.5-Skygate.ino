@@ -20,8 +20,10 @@
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
 // FONT used for title / message
-//#include <Fonts/OpenSans_Regular7pt8b.h>
-//#include <Fonts/OpenSans_Regular10pt8b.h>
+#include <Fonts/quicksand_bold_webfont14pt8b.h>
+#include <Fonts/quicksand_bold_webfont18pt8b.h>
+
+//Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
 
 const char* ssid     = "KabelBox-A210"; // Casa Berlin
 const char* password = "14237187131701431551";
@@ -57,7 +59,7 @@ void setup() {
 
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
-  //display.setFont(&OpenSans_Regular10pt8b);
+  display.setFont(&quicksand_bold_webfont14pt8b);
 
   display.setTextColor(GxEPD_BLACK);
   //  Serial.print("currentTime = "+currentTime); // disabled call obtain_time() function to get current HH:mm
@@ -128,8 +130,8 @@ void handle_http_root() {
   html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
   html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' class='form-control'><br>";
   html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>&nbsp;";
-  // onclick='document.getElementById(\"url\").value = \"\"'
-  html += "<input type='button' value='Clean Url' class='btn btn-default'><br><br></form>";
+  
+  html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br></form>";
   html += "<br><form id='f' action='/display-write' target='frame' method='POST'>";
   html += "<label for='title'>Title:</label><input onfocus='document.getElementById(\"url\").value = \"\"' id='title' name='title' class='form-control'><br>";
   html += "<textarea placeholder='Content' name='text' rows=6 class='form-control' onfocus='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'></textarea>";
@@ -140,6 +142,7 @@ void handle_http_root() {
   html += "<iframe name='frame'></iframe>";
   html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
   html += "</body>";
+
   server.send(200, "text/html", headers + html);
 }
 
@@ -163,13 +166,13 @@ void handleDisplayWrite() {
     for (byte i = 0; i < server.args(); i++) {
 
       if (server.argName(i) == "title") {
-        //display.setFont(&OpenSans_Regular10pt8b);
-        display.setCursor(0, 33);
+        display.setFont(&quicksand_bold_webfont18pt8b);
+        display.setCursor(10, 43);
         display.print(server.arg(i));
       }
       if (server.argName(i) == "text") {
-        //display.setFont(&OpenSans_Regular7pt8b);
-        display.setCursor(0, 63);
+        display.setFont(&quicksand_bold_webfont14pt8b);
+        display.setCursor(10, 75);
         display.print(server.arg(i));
       }
     }
