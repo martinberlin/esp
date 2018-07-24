@@ -128,19 +128,20 @@ void handle_http_root() {
   String html = "<body><div class='container-fluid'><div class='row'>";
   html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
   html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
-  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' class='form-control'><br>";
+  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' type='url' class='form-control'><br>";
   html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>&nbsp;";
   
-  html += "<input type='button' value='Clean Url' onclick='document.getElementById(\"url\").value = \"\"' class='btn btn-default'><br><br></form>";
-  html += "<br><form id='f' action='/display-write' target='frame' method='POST'>";
-  html += "<label for='title'>Title:</label><input onfocus='document.getElementById(\"url\").value = \"\"' id='title' name='title' class='form-control'><br>";
-  html += "<textarea placeholder='Content' name='text' rows=6 class='form-control' onfocus='document.getElementById(\"url\").value = \"\";document.getElementById(\"f\").action=\"/display-write\"'></textarea>";
+  html += "<input type='button' value='Clean Url' class='btn btn-default'><br><br></form>";
+  html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
+  html += "<label for='title'>Title:</label><input id='title' name='title' class='form-control'><br>";
+  html += "<textarea placeholder='Content' name='text' rows=4 class='form-control'></textarea>";
   html += "<input type='submit' value='Send to display' class='btn btn-success'></form>";
 
-  html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br><br><br>";
-  html += "</div></div></div>";
+  html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br>";
   html += "<iframe name='frame'></iframe>";
-  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
+  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a><br>";
+  html += "</div></div></div>";
+
   html += "</body>";
 
   server.send(200, "text/html", headers + html);
