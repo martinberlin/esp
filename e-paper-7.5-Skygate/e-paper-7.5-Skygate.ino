@@ -66,16 +66,24 @@ void setup() {
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
  
-  //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
+   //WiFiManager
+   //Local intialization. Once its business is done, there is no need to keep it around
   WiFiManager wifiManager;
-  wifiManager.autoConnect(configModeAP);
+  wifiManager.setMinimumSignalQuality(40);
+   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+  wifiManager.setDebugOutput(true); 
+  wifiManager.autoConnect(configModeAP);
   
+  // Uncomment to force startConfig (And comment autoconnect)
+  //wifiManager.startConfigPortal(configModeAP);
+  // Uncomment to reset settings
+  //wifiManager.resetSettings();
+
   display.setTextColor(GxEPD_BLACK);
 
-/*
-    // Set up mDNS responder:
+  // Set up mDNS responder:
   // - first argument is the domain name, in this example
   //   the fully-qualified domain name is "esp8266.local"
   // - second argument is the IP address to advertise
@@ -89,7 +97,7 @@ void setup() {
   Serial.println("mDNS responder started");
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
-  */
+  
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
   // Routing
@@ -102,14 +110,17 @@ void setup() {
 }
 
 void configModeCallback (WiFiManager *myWiFiManager) {
-  message = "Display can't connect to WiFi. Entering config mode\nPlease connect to: "+String(configModeAP)+"\n";
-  message = "And browse" + String(WiFi.softAPIP())+ " to configure the display WiFi connection.";
-  Serial.println(message);
+  message = "Display can't connect to WiFi. Entering config mode\nPlease connect to: "+String(configModeAP)+" Access Point\n";
+  message += "And browse 192.168.4.1 to configure the display WiFi connection.";
   displayMessage(message);
-  
   Serial.println(WiFi.softAPIP());
-
   Serial.println(myWiFiManager->getConfigPortalSSID());
+}
+
+void saveConfigCallback() {
+  message = "WiFi configuration saved with a successful connection attempt/n";
+  message += "On next restart will connect automatically.";
+  displayMessage(message);
 }
 
 void handle_http_not_found() {
@@ -142,16 +153,15 @@ void handle_http_root() {
   html += "<option value='.5'>.5 half size</option></select>";
   html += "</div><div class='col-md-2'>";
   html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean Url' class='btn btn-default'></div></div></form>";
+  
   html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
   html += "<label for='title'>Title:</label><input id='title' name='title' class='form-control'><br>";
   html += "<textarea placeholder='Content' name='text' rows=4 class='form-control'></textarea>";
   html += "<input type='submit' value='Send to display' class='btn btn-success'></form>";
-
   html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br>";
   html += "<iframe name='frame'></iframe>";
   html += "<a href='/deep-sleep' target='frame'>Deep sleep</a><br>";
   html += "</div></div></div></main>";
-
   html += "</body>";
 
   server.send(200, "text/html", headers + html);
@@ -193,65 +203,6 @@ void handleDisplayWrite() {
   server.send(200, "text/html", "Text sent to display");
 }
 
-void url_to_display(String url) {
-  String host = "slosarek.eu";
-  String api = "/api/htm2txt.php?pre=1&u=";
-
-  String request;
-  request  = "GET " + api + url + " HTTP/1.1\r\n";
-  request += "Accept: */*\r\n";
-  request += "Host: " + host + "\r\n";
-  request += "Connection: close\r\n";
-  request += "\r\n";
-  Serial.println(request);
-
-  if (! client.connect(host, 80)) {
-    Serial.println("connection failed");
-    client.flush();
-    client.stop();
-  }
-  client.print(request); //send the http request to the server
-  client.flush();
-
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 5000) {
-      Serial.println(">>> Client Timeout !");
-      client.stop();
-    }
-  }
-
-  bool   skip_headers = true;
-  String rx_line;
-  String response;
-  int lines_count = 0;
-  // Read all the lines of the reply from server and print them to Serial
-  while (client.available()) {
-    rx_line = client.readStringUntil('\n');
-    if (rx_line.length() <= 1) { // a blank line denotes end of headers
-      skip_headers = false;
-    }
-
-    // Collect http response
-    if (!skip_headers) {
-      response += rx_line;
-      rx_line.trim();
-
-      if (rx_line != "" && rx_line != "-") {
-        if (lines_count < 2) {
-          //display.setFont(&OpenSans_Regular10pt8b);
-        }
-        if (lines_count == 2) {
-          //display.setFont(&OpenSans_Regular7pt8b);
-        }
-        display.println(rx_line);
-        lines_count++;
-        //Serial.println(String(lines_count));
-      }
-    }
-  }
-  //response.trim();
-}
 void handleWebToDisplay() {
   String url = "";
   String zoom = ".8";
@@ -421,7 +372,6 @@ void handleWebToDisplay() {
          
 }
 
-
 uint16_t read16()
 {
   // BMP data is stored little-endian, same as Arduino.
@@ -445,6 +395,7 @@ uint32_t read32()
 
 // Displays message doing a partial update
 void displayMessage(String message) {
+  Serial.println("DISPLAY prints: "+message);
   display.setTextColor(GxEPD_WHITE);
   display.fillRect(0,0,display.width(),60,GxEPD_BLACK);
   display.setCursor(15, 25);
