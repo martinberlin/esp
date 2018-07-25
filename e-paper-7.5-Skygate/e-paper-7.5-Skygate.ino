@@ -25,13 +25,15 @@
 
 //Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
 
-const char* ssid     = "KabelBox-A210"; // Casa Berlin
-const char* password = "14237187131701431551";
-//const char* ssid     = "AndroidAP";
-//const char* password = "fasfasnar";
+//const char* ssid     = "KabelBox-A210"; // Casa Berlin
+//const char* password = "14237187131701431551";
+const char* ssid     = "AndroidAP";
+const char* password = "fasfasnar";
 
 const char* domainName = "display"; // mDNS: display.local
-
+String message;
+// Makes a div id="m" containing response message to dissapear after 3 seconds
+String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},3000);</script>";
 #define SD_BUFFER_PIXELS 20 // Image example
 // TCP server at port 80 will respond to HTTP requests
 ESP8266WebServer server(80);
@@ -55,15 +57,15 @@ WiFiClient client; // wifi client object
 
 void setup() {
   Serial.begin(115200);
-  StartWiFi(ssid, password);
 
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
-
+  
+  // WiFi may deliver an error in white if can't connect
+  StartWiFi(ssid, password);
   display.setTextColor(GxEPD_BLACK);
-  //  Serial.print("currentTime = "+currentTime); // disabled call obtain_time() function to get current HH:mm
-
+  
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
   // Routing
@@ -84,7 +86,9 @@ int StartWiFi(const char* ssid, const char* password) {
   while (WiFi.status() != WL_CONNECTED ) {
     delay(500); Serial.print(".");
     if (connAttempts > 30) {
-      Serial.println("ERROR connecting to WiFi failed");
+      message = "ERROR connecting to WiFi:"+String(ssid)+" failed";
+      Serial.println(message);
+      displayMessage(message);
       return -5;
     }
     connAttempts++;
@@ -125,22 +129,34 @@ void handle_http_root() {
 
   String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
-  String html = "<body><div class='container-fluid'><div class='row'>";
+  String html = "<body><main role='main'><div class='container-fluid'><div class='row'>";
   html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
   html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
-  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' type='url' class='form-control'><br>";
-  html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>&nbsp;";
-  
-  html += "<input type='button' onclick='document.getElementById(\"url\").value = \"\"' value='Clean Url' class='btn btn-default'><br><br></form>";
-  html += "<br><form id='f2' action='/display-write' target='frame' method='POST'>";
-  html += "<label for='title'>Title:</label><input id='title' name='title' class='form-control'><br>";
-  html += "<textarea placeholder='Content' name='text' rows=6 class='form-control'></textarea>";
-  html += "<input type='submit' value='Send to display' class='btn btn-success'></form>";
+  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
+  html += "<div class='row'><div class='col-md-4'>";
+  html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>";
+  html += "</div><div class='col-md-6'>";
+  html += "<select name='zoom' class='form-control'>";
+  html += "<option value='2'>2</option>";
+  html += "<option value='1.5'>1.5</option>";
+  html += "<option value='1.4'>1.4</option>";
+  html += "<option value='1.2'>1.2 20% zoomed</option>";
+  html += "<option value='' selected>zoom</option>";
+  html += "<option value='1'>1 no zoom</option>";
+  html += "<option value='.9'>.9 10% smaller</option>";
+  html += "<option value='.85'>.85</option>";
+  html += "<option value='.8'>.8</option>";
+  html += "<option value='.7'>.7</option>";
+  html += "<option value='.6'>.6</option>";
+  html += "<option value='.5'>.5 half size</option></select>";
+  html += "</div><div class='col-md-2'>";
+  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean Url' class='btn btn-default'></div></div></form>";
+  html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
 
-  html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br>";
-  html += "<iframe name='frame'></iframe>";
   html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
   html += "</div></div></div>";
+  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a><br>";
+  html += "</div></div></div></main>";
 
   html += "</body>";
 
@@ -148,8 +164,9 @@ void handle_http_root() {
 }
 
 void handleDeepSleep() {
+  server.send(200, "text/html", "Going to deep-sleep. Reset to wake up");
+  delay(1);
   ESP.deepSleep(20e6);
-  server.send(200, "text/html", "Going to deep-sleep");
 }
 
 
@@ -243,10 +260,14 @@ void url_to_display(String url) {
 }
 void handleWebToDisplay() {
   String url = "";
+  String zoom = ".8";
   if (server.args() > 0) {
     for (byte i = 0; i < server.args(); i++) {
       if (server.argName(i) == "url" && server.arg(i) != "") {
         url = server.arg(i);
+      }
+      if (server.argName(i) == "zoom" && server.arg(i) != "") {
+        zoom = server.arg(i);
       }
     }
   }
@@ -256,7 +277,7 @@ void handleWebToDisplay() {
       return;
     }
   String host = "slosarek.eu";
-  String image = "/api/web-image/?u=" + url;
+  String image = "/api/web-image/?u=" + url + "&z=" + zoom;
    
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
@@ -388,7 +409,7 @@ void handleWebToDisplay() {
         } // end pixel
       } // end line
 
-       server.send(200, "text/html", "Image sent to display");
+       server.send(200, "text/html", "<div id='m'>Image sent to display</div>"+javascriptFadeMessage);
        Serial.println("Bytes read:"+ String(bytesRead));
        display.update();
        client.stop();
@@ -428,8 +449,17 @@ uint32_t read32()
   return result;
 }
 
-void loop() {
+// Displays message doing a partial update
+void displayMessage(String message) {
+  display.setTextColor(GxEPD_WHITE);
+  display.fillRect(0,0,display.width(),60,GxEPD_BLACK);
+  display.setCursor(15, 25);
+  display.print(message);
+  display.updateWindow(0,0,display.width(),60, true); // Attempt partial update
+  display.update();
+}
 
+void loop() {
   // Add  milisec comparison to make server work for 1 min / 90 sec
   if (millis() < serverDownTime) {
     server.handleClient();
