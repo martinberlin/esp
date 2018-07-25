@@ -132,13 +132,11 @@ void handle_http_root() {
   String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><main role='main'><div class='container-fluid'><div class='row'>";
-  html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
-  html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
-  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
-  html += "<div class='row'><div class='col-md-4'>";
-  html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>";
-  html += "</div><div class='col-md-6'>";
-  html += "<select name='zoom' class='form-control'>";
+  html += "<div class='col-md-12'><h4>" + String(domainName) + ".local</h4>";
+  html += "<form id='f' action='/web-image' target='frame' method='POST'>";
+  html += "<div class='row'><div class='col-sm-12'>";
+    //html += "<label for='url'>Parse Url:</label>";
+  html += "<select name='zoom' style='width:6em' class='form-control float-right'>";
   html += "<option value='2'>2</option>";
   html += "<option value='1.5'>1.5</option>";
   html += "<option value='1.4'>1.4</option>";
@@ -151,8 +149,12 @@ void handle_http_root() {
   html += "<option value='.7'>.7</option>";
   html += "<option value='.6'>.6</option>";
   html += "<option value='.5'>.5 half size</option></select>";
-  html += "</div><div class='col-md-2'>";
-  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean Url' class='btn btn-default'></div></div></form>";
+  html += "</div></div>";
+  html += "<input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
+  html += "<div class='row'><div class='col-sm-12 form-group'>";
+  html += "<input type='submit' value='Website screenshot' class='btn btn-mini btn-dark'>&nbsp;";
+  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean' class='btn btn-mini btn-default'></div>";
+  html += "</div></form>";
   
   html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
   html += "<label for='title'>Title:</label><input id='title' name='title' class='form-control'><br>";
