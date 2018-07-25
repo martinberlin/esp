@@ -31,9 +31,9 @@ const char* ssid     = "AndroidAP";
 const char* password = "fasfasnar";
 
 const char* domainName = "display"; // mDNS: display.local
-
-// Makes a div called m to dissapear after 2 seconds
-String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},2000);</script>";
+String message;
+// Makes a div id="m" containing response message to dissapear after 3 seconds
+String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},3000);</script>";
 #define SD_BUFFER_PIXELS 20 // Image example
 // TCP server at port 80 will respond to HTTP requests
 ESP8266WebServer server(80);
@@ -57,15 +57,15 @@ WiFiClient client; // wifi client object
 
 void setup() {
   Serial.begin(115200);
-  StartWiFi(ssid, password);
 
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
-
+  
+  // WiFi may deliver an error in white if can't connect
+  StartWiFi(ssid, password);
   display.setTextColor(GxEPD_BLACK);
-  //  Serial.print("currentTime = "+currentTime); // disabled call obtain_time() function to get current HH:mm
-
+  
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
   // Routing
@@ -86,7 +86,9 @@ int StartWiFi(const char* ssid, const char* password) {
   while (WiFi.status() != WL_CONNECTED ) {
     delay(500); Serial.print(".");
     if (connAttempts > 30) {
-      Serial.println("ERROR connecting to WiFi failed");
+      message = "ERROR connecting to WiFi:"+String(ssid)+" failed";
+      Serial.println(message);
+      displayMessage(message);
       return -5;
     }
     connAttempts++;
@@ -450,8 +452,17 @@ uint32_t read32()
   return result;
 }
 
-void loop() {
+// Displays message doing a partial update
+void displayMessage(String message) {
+  display.setTextColor(GxEPD_WHITE);
+  display.fillRect(0,0,display.width(),60,GxEPD_BLACK);
+  display.setCursor(15, 25);
+  display.print(message);
+  display.updateWindow(0,0,display.width(),60, true); // Attempt partial update
+  display.update();
+}
 
+void loop() {
   // Add  milisec comparison to make server work for 1 min / 90 sec
   if (millis() < serverDownTime) {
     server.handleClient();
