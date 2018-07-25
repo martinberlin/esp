@@ -13,6 +13,10 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
+//needed for library
+#include <DNSServer.h>
+#include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
 #include <WiFiClient.h>
 #include <SPI.h>
 #include <GxEPD.h>
@@ -25,12 +29,12 @@
 
 //Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
 
-//const char* ssid     = "KabelBox-A210"; // Casa Berlin
+// No MORE ssid / passwords! Use wifiManager
 //const char* password = "14237187131701431551";
-const char* ssid     = "AndroidAP";
-const char* password = "fasfasnar";
-
-const char* domainName = "display"; // mDNS: display.local
+// Default config mode Access point
+const char* configModeAP = "Display-autoconnect";
+// mDNS: display.local
+const char* domainName = "display"; 
 String message;
 // Makes a div id="m" containing response message to dissapear after 3 seconds
 String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},3000);</script>";
@@ -61,45 +65,17 @@ void setup() {
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
+ 
+  //WiFiManager
+  //Local intialization. Once its business is done, there is no need to keep it around
+  WiFiManager wifiManager;
+  wifiManager.autoConnect(configModeAP);
+  wifiManager.setAPCallback(configModeCallback);
   
-  // WiFi may deliver an error in white if can't connect
-  StartWiFi(ssid, password);
   display.setTextColor(GxEPD_BLACK);
-  
-  // Start HTTP server
-  server.onNotFound(handle_http_not_found);
-  // Routing
-  server.on("/", handle_http_root);
-  server.on("/display-write", handleDisplayWrite);
-  server.on("/web-image", handleWebToDisplay);
-  server.on("/display-clean", handleDisplayClean);
-  
-  server.on("/deep-sleep", handleDeepSleep);
-  
-  server.begin(); 
-}
 
-int StartWiFi(const char* ssid, const char* password) {
-  int connAttempts = 0;
-  Serial.println("\r\nConnecting to: " + String(ssid));
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED ) {
-    delay(500); Serial.print(".");
-    if (connAttempts > 30) {
-      message = "ERROR connecting to WiFi:"+String(ssid)+" failed";
-      Serial.println(message);
-      displayMessage(message);
-      return -5;
-    }
-    connAttempts++;
-  }
-  // wifi_set_sleep_type(LIGHT_SLEEP_T);
-  Serial.println("WiFi connected\r\nIP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("MAC: ");
-  Serial.println(WiFi.macAddress());
-
-  // Set up mDNS responder:
+/*
+    // Set up mDNS responder:
   // - first argument is the domain name, in this example
   //   the fully-qualified domain name is "esp8266.local"
   // - second argument is the IP address to advertise
@@ -111,14 +87,29 @@ int StartWiFi(const char* ssid, const char* password) {
     }
   }
   Serial.println("mDNS responder started");
-
-  // Start TCP (HTTP) server
-  server.begin();
-  Serial.println("TCP server started");
-
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
-  return 1;
+  */
+  // Start HTTP server
+  server.onNotFound(handle_http_not_found);
+  // Routing
+  server.on("/", handle_http_root);
+  server.on("/display-write", handleDisplayWrite);
+  server.on("/web-image", handleWebToDisplay);
+  server.on("/display-clean", handleDisplayClean);
+  server.on("/deep-sleep", handleDeepSleep);
+  server.begin();
+}
+
+void configModeCallback (WiFiManager *myWiFiManager) {
+  message = "Display can't connect to WiFi. Entering config mode\nPlease connect to: "+String(configModeAP)+"\n";
+  message = "And browse" + String(WiFi.softAPIP())+ " to configure the display WiFi connection.";
+  Serial.println(message);
+  displayMessage(message);
+  
+  Serial.println(WiFi.softAPIP());
+
+  Serial.println(myWiFiManager->getConfigPortalSSID());
 }
 
 void handle_http_not_found() {
