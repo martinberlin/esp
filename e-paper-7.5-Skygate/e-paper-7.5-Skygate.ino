@@ -110,10 +110,9 @@ void setup() {
 }
 
 void configModeCallback (WiFiManager *myWiFiManager) {
-  message = "Display can't connect to WiFi. Entering config mode\nPlease connect to: "+String(configModeAP)+" Access Point\n";
-  message += "And browse 192.168.4.1 to configure the display WiFi connection.";
-  displayMessage(message);
-  Serial.println(WiFi.softAPIP());
+  message = "Display can't get online.Entering config mode\nPlease connect to: "+String(configModeAP)+" AP and\n";
+  message += "browse 192.168.4.1 to configure the display.";
+  displayMessage(message,108);
   Serial.println(myWiFiManager->getConfigPortalSSID());
 }
 
@@ -122,7 +121,7 @@ void saveConfigCallback() {
   message += "On next restart will connect automatically. Display is online:/n";
   message += "http://display.local /nhttp://"+WiFi.localIP().toString();
   Serial.println(WiFi.localIP().toString());
-  displayMessage(message);
+  displayMessage(message,120);
 }
 
 void handle_http_not_found() {
@@ -398,14 +397,14 @@ uint32_t read32()
 }
 
 // Displays message doing a partial update
-void displayMessage(String message) {
+void displayMessage(String message, int height) {
   Serial.println("DISPLAY prints: "+message);
   display.setTextColor(GxEPD_WHITE);
-  display.fillRect(0,0,display.width(),60,GxEPD_BLACK);
-  display.setCursor(15, 25);
+  display.fillRect(0,0,display.width(),height,GxEPD_BLACK);
+  display.setCursor(2, 25);
   display.print(message);
-  display.updateWindow(0,0,display.width(),60, true); // Attempt partial update
-  display.update();
+  display.updateWindow(0,0,display.width(),height, true); // Attempt partial update
+  display.update(); // -> Since could not make partial updateWindow work
 }
 
 void loop() {
