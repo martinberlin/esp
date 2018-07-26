@@ -119,7 +119,9 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 
 void saveConfigCallback() {
   message = "WiFi configuration saved with a successful connection attempt/n";
-  message += "On next restart will connect automatically.";
+  message += "On next restart will connect automatically. Display is online:/n";
+  message += "http://display.local /nhttp://"+WiFi.localIP().toString();
+  Serial.println(WiFi.localIP().toString());
   displayMessage(message);
 }
 
