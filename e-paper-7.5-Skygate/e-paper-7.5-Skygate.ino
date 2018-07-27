@@ -85,9 +85,8 @@ void setup() {
 
   // Set up mDNS responder:
   // - first argument is the domain name, in this example
-  //   the fully-qualified domain name is "esp8266.local"
+  //   the fully-qualified domain name is "display.local"
   // - second argument is the IP address to advertise
-  //   we send our IP address on the WiFi network
   if (!MDNS.begin(domainName)) {
     Serial.println("Error setting up MDNS responder!");
     while (1) {
@@ -97,6 +96,7 @@ void setup() {
   Serial.println("mDNS responder started");
   // Add service to MDNS-SD
   MDNS.addService("http", "tcp", 80);
+  delay(500);
   
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
@@ -117,9 +117,9 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 }
 
 void saveConfigCallback() {
-  message = "WiFi configuration saved with a successful connection attempt/n";
-  message += "On next restart will connect automatically. Display is online:/n";
-  message += "http://display.local /nhttp://"+WiFi.localIP().toString();
+  message = "WiFi configuration saved. ";
+  message += "On next restart will connect automatically. Display is online: ";
+  message += "http://display.local or http://"+WiFi.localIP().toString();
   Serial.println(WiFi.localIP().toString());
   displayMessage(message,120);
 }
