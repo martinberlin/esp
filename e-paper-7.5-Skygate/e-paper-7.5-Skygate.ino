@@ -13,6 +13,10 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
+//needed for library
+#include <DNSServer.h>
+#include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
+
 #include <WiFiClient.h>
 #include <SPI.h>
 #include <GxEPD.h>
@@ -25,12 +29,12 @@
 
 //Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
 
-//const char* ssid     = "KabelBox-A210"; // Casa Berlin
+// No MORE ssid / passwords! Use wifiManager
 //const char* password = "14237187131701431551";
-const char* ssid     = "AndroidAP";
-const char* password = "fasfasnar";
-
-const char* domainName = "display"; // mDNS: display.local
+// Default config mode Access point
+const char* configModeAP = "Display-autoconnect";
+// mDNS: display.local
+const char* domainName = "display"; 
 String message;
 // Makes a div id="m" containing response message to dissapear after 3 seconds
 String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},3000);</script>";
@@ -50,7 +54,7 @@ GxIO_Class io(SPI, D0, D3, D4);
 GxEPD_Class display(io, D4, D6 );
 
 //unsigned long  startMillis = millis();
-const unsigned long  serverDownTime = millis() + 30 * 60 * 1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
+const unsigned long  serverDownTime = millis() + 60 * 60 * 1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
 
 
 WiFiClient client; // wifi client object
@@ -61,10 +65,38 @@ void setup() {
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
+ 
+   //WiFiManager
+   //Local intialization. Once its business is done, there is no need to keep it around
+  WiFiManager wifiManager;
+  wifiManager.setMinimumSignalQuality(40);
+   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
+  wifiManager.setAPCallback(configModeCallback);
+  wifiManager.setSaveConfigCallback(saveConfigCallback);
+  wifiManager.setDebugOutput(true); 
+  wifiManager.autoConnect(configModeAP);
   
-  // WiFi may deliver an error in white if can't connect
-  StartWiFi(ssid, password);
+  // Uncomment to force startConfig (And comment autoconnect)
+  //wifiManager.startConfigPortal(configModeAP);
+  // Uncomment to reset settings
+  //wifiManager.resetSettings();
+
   display.setTextColor(GxEPD_BLACK);
+
+  // Set up mDNS responder:
+  // - first argument is the domain name, in this example
+  //   the fully-qualified domain name is "display.local"
+  // - second argument is the IP address to advertise
+  if (!MDNS.begin(domainName)) {
+    Serial.println("Error setting up MDNS responder!");
+    while (1) {
+      delay(1000);
+    }
+  }
+  Serial.println("mDNS responder started");
+  // Add service to MDNS-SD
+  MDNS.addService("http", "tcp", 80);
+  delay(500);
   
   // Start HTTP server
   server.onNotFound(handle_http_not_found);
@@ -73,52 +105,23 @@ void setup() {
   server.on("/display-write", handleDisplayWrite);
   server.on("/web-image", handleWebToDisplay);
   server.on("/display-clean", handleDisplayClean);
-  
   server.on("/deep-sleep", handleDeepSleep);
-  
-  server.begin(); 
+  server.begin();
 }
 
-int StartWiFi(const char* ssid, const char* password) {
-  int connAttempts = 0;
-  Serial.println("\r\nConnecting to: " + String(ssid));
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED ) {
-    delay(500); Serial.print(".");
-    if (connAttempts > 30) {
-      message = "ERROR connecting to WiFi:"+String(ssid)+" failed";
-      Serial.println(message);
-      displayMessage(message);
-      return -5;
-    }
-    connAttempts++;
-  }
-  // wifi_set_sleep_type(LIGHT_SLEEP_T);
-  Serial.println("WiFi connected\r\nIP address: ");
-  Serial.println(WiFi.localIP());
-  Serial.println("MAC: ");
-  Serial.println(WiFi.macAddress());
+void configModeCallback (WiFiManager *myWiFiManager) {
+  message = "Display can't get online.Entering config mode\nPlease connect to: "+String(configModeAP)+" AP and\n";
+  message += "browse 192.168.4.1 to configure the display.";
+  displayMessage(message,108);
+  Serial.println(myWiFiManager->getConfigPortalSSID());
+}
 
-  // Set up mDNS responder:
-  // - first argument is the domain name, in this example
-  //   the fully-qualified domain name is "esp8266.local"
-  // - second argument is the IP address to advertise
-  //   we send our IP address on the WiFi network
-  if (!MDNS.begin(domainName)) {
-    Serial.println("Error setting up MDNS responder!");
-    while (1) {
-      delay(1000);
-    }
-  }
-  Serial.println("mDNS responder started");
-
-  // Start TCP (HTTP) server
-  server.begin();
-  Serial.println("TCP server started");
-
-  // Add service to MDNS-SD
-  MDNS.addService("http", "tcp", 80);
-  return 1;
+void saveConfigCallback() {
+  message = "WiFi configuration saved. ";
+  message += "On next restart will connect automatically. Display is online: ";
+  message += "http://display.local or http://"+WiFi.localIP().toString();
+  Serial.println(WiFi.localIP().toString());
+  displayMessage(message,120);
 }
 
 void handle_http_not_found() {
@@ -130,13 +133,11 @@ void handle_http_root() {
   String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><main role='main'><div class='container-fluid'><div class='row'>";
-  html += "<div class='col-md-10'><h4>" + String(domainName) + ".local</h4>";
-  html += "<br><form id='f' action='/web-image' target='frame' method='POST'>";
-  html += "<label for='url'>Parse Url:</label><input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
-  html += "<div class='row'><div class='col-md-4'>";
-  html += "<input type='submit' value='Website screenshot' class='btn btn-dark'>";
-  html += "</div><div class='col-md-6'>";
-  html += "<select name='zoom' class='form-control'>";
+  html += "<div class='col-md-12'><h4>" + String(domainName) + ".local</h4>";
+  html += "<form id='f' action='/web-image' target='frame' method='POST'>";
+  html += "<div class='row'><div class='col-sm-12'>";
+    //html += "<label for='url'>Parse Url:</label>";
+  html += "<select name='zoom' style='width:6em' class='form-control float-right'>";
   html += "<option value='2'>2</option>";
   html += "<option value='1.5'>1.5</option>";
   html += "<option value='1.4'>1.4</option>";
@@ -149,15 +150,21 @@ void handle_http_root() {
   html += "<option value='.7'>.7</option>";
   html += "<option value='.6'>.6</option>";
   html += "<option value='.5'>.5 half size</option></select>";
-  html += "</div><div class='col-md-2'>";
-  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean Url' class='btn btn-default'></div></div></form>";
+  html += "</div></div>";
+  html += "<input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
+  html += "<div class='row'><div class='col-sm-12 form-group'>";
+  html += "<input type='submit' value='Website screenshot' class='btn btn-mini btn-dark'>&nbsp;";
+  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean url' class='btn btn-mini btn-default'></div>";
+  html += "</div></form>";
+  
   html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
-
-  html += "<a href='/deep-sleep' target='frame'>Deep sleep</a>";
-  html += "</div></div></div>";
+  html += "<label for='title'>Title:</label><input id='title' name='title' class='form-control'><br>";
+  html += "<textarea placeholder='Content' name='text' rows=4 class='form-control'></textarea>";
+  html += "<input type='submit' value='Send to display' class='btn btn-success'></form>";
+  html += "<a class='btn btn-default' role='button' target='frame' href='/display-clean'>Clean screen</a><br>";
+  html += "<iframe name='frame'></iframe>";
   html += "<a href='/deep-sleep' target='frame'>Deep sleep</a><br>";
   html += "</div></div></div></main>";
-
   html += "</body>";
 
   server.send(200, "text/html", headers + html);
@@ -199,65 +206,6 @@ void handleDisplayWrite() {
   server.send(200, "text/html", "Text sent to display");
 }
 
-void url_to_display(String url) {
-  String host = "slosarek.eu";
-  String api = "/api/htm2txt.php?pre=1&u=";
-
-  String request;
-  request  = "GET " + api + url + " HTTP/1.1\r\n";
-  request += "Accept: */*\r\n";
-  request += "Host: " + host + "\r\n";
-  request += "Connection: close\r\n";
-  request += "\r\n";
-  Serial.println(request);
-
-  if (! client.connect(host, 80)) {
-    Serial.println("connection failed");
-    client.flush();
-    client.stop();
-  }
-  client.print(request); //send the http request to the server
-  client.flush();
-
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > 5000) {
-      Serial.println(">>> Client Timeout !");
-      client.stop();
-    }
-  }
-
-  bool   skip_headers = true;
-  String rx_line;
-  String response;
-  int lines_count = 0;
-  // Read all the lines of the reply from server and print them to Serial
-  while (client.available()) {
-    rx_line = client.readStringUntil('\n');
-    if (rx_line.length() <= 1) { // a blank line denotes end of headers
-      skip_headers = false;
-    }
-
-    // Collect http response
-    if (!skip_headers) {
-      response += rx_line;
-      rx_line.trim();
-
-      if (rx_line != "" && rx_line != "-") {
-        if (lines_count < 2) {
-          //display.setFont(&OpenSans_Regular10pt8b);
-        }
-        if (lines_count == 2) {
-          //display.setFont(&OpenSans_Regular7pt8b);
-        }
-        display.println(rx_line);
-        lines_count++;
-        //Serial.println(String(lines_count));
-      }
-    }
-  }
-  //response.trim();
-}
 void handleWebToDisplay() {
   String url = "";
   String zoom = ".8";
@@ -299,7 +247,7 @@ void handleWebToDisplay() {
   
   uint8_t x = 0;
   uint8_t y = 0;
-  bool valid = false; // valid format to be handled
+  
   bool flip = false; // bitmap is stored bottom-to-top
  
   uint32_t startTime = millis();
@@ -338,7 +286,7 @@ void handleWebToDisplay() {
       Serial.print(" / Bit Depth: "); Serial.println(depth);
       Serial.print("Planes: "); Serial.println(planes);Serial.print("Format: "); Serial.println(format);
     
-    if ((planes == 1) && (format == 0)) { // uncompressed is handled
+    if ((planes == 1) && (format == 0 || format == 3)) { // uncompressed is handled
 
       // BMP rows are padded (if needed) to 4-byte boundary
       //uint32_t rowSize = (width * depth / 8 + 3) & ~3;
@@ -356,7 +304,6 @@ void handleWebToDisplay() {
       for (uint16_t row = 0; row < h; row++) // for each line
       {
         uint8_t bits;
-        
         for (uint16_t col = 0; col < w; col++) // for each pixel
         {
           // Time to read more pixel data?
@@ -369,7 +316,6 @@ void handleWebToDisplay() {
           {
             case 1: // one bit per pixel b/w format
               {
-                valid = true;
                 if (0 == col % 8)
                 {
                   bits = buffer[buffidx++];
@@ -377,11 +323,11 @@ void handleWebToDisplay() {
                 }
                 uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
                 display.drawPixel(col, displayHeight-row, bw_color);
-                //Serial.println("c:"+ String(col));
                 bits <<= 1;
               }
               break;
-            case 4: // 4 work in progress
+              
+            case 4: // was a hard word to get here
               {
                 if (0 == col % 2) {
                   bits = buffer[buffidx++];
@@ -395,7 +341,8 @@ void handleWebToDisplay() {
                 bits <<= 1;
               }
               break;
-            case 24: // standard BMP format
+              
+             case 24: // standard BMP format
               {
                 uint16_t b = buffer[buffidx++];
                 uint16_t g = buffer[buffidx++];
@@ -404,7 +351,6 @@ void handleWebToDisplay() {
                 display.drawPixel(col, displayHeight-row, bw_color);
                 bytesRead = bytesRead +3;
               }
-              break;
           }
         } // end pixel
       } // end line
@@ -416,8 +362,11 @@ void handleWebToDisplay() {
        break;
        
     } else {
-      display.print("Compressed BMP files are not handled");
+      server.send(200, "text/html", "<div id='m'>Unsupported image format (depth:"+String(depth)+")</div>"+javascriptFadeMessage);
+      display.setCursor(10, 43);
+      display.print("Compressed BMP files are not handled.Unsupported image format (depth:"+String(depth)+")");
       display.update();
+      
     }
 //}
 
@@ -426,7 +375,6 @@ void handleWebToDisplay() {
   }
          
 }
-
 
 uint16_t read16()
 {
@@ -450,13 +398,14 @@ uint32_t read32()
 }
 
 // Displays message doing a partial update
-void displayMessage(String message) {
+void displayMessage(String message, int height) {
+  Serial.println("DISPLAY prints: "+message);
   display.setTextColor(GxEPD_WHITE);
-  display.fillRect(0,0,display.width(),60,GxEPD_BLACK);
-  display.setCursor(15, 25);
+  display.fillRect(0,0,display.width(),height,GxEPD_BLACK);
+  display.setCursor(2, 25);
   display.print(message);
-  display.updateWindow(0,0,display.width(),60, true); // Attempt partial update
-  display.update();
+  display.updateWindow(0,0,display.width(),height, true); // Attempt partial update
+  display.update(); // -> Since could not make partial updateWindow work
 }
 
 void loop() {
