@@ -54,7 +54,7 @@ GxIO_Class io(SPI, D0, D3, D4);
 GxEPD_Class display(io, D4, D6 );
 
 //unsigned long  startMillis = millis();
-const unsigned long  serverDownTime = millis() + 30 * 60 * 1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
+const unsigned long  serverDownTime = millis() + 60 * 60 * 1000; // Min / Sec / Millis Delay between updates, in milliseconds, WU allows 500 requests per-day maximum, set to every 10-mins or 144/day
 
 
 WiFiClient client; // wifi client object
@@ -154,7 +154,7 @@ void handle_http_root() {
   html += "<input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
   html += "<div class='row'><div class='col-sm-12 form-group'>";
   html += "<input type='submit' value='Website screenshot' class='btn btn-mini btn-dark'>&nbsp;";
-  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean' class='btn btn-mini btn-default'></div>";
+  html += "<input type='button' onclick='document.getElementById(\"url\").value=\"\"' value='Clean url' class='btn btn-mini btn-default'></div>";
   html += "</div></form>";
   
   html += "<form id='f2' action='/display-write' target='frame' method='POST'>";
@@ -247,7 +247,7 @@ void handleWebToDisplay() {
   
   uint8_t x = 0;
   uint8_t y = 0;
-  bool valid = false; // valid format to be handled
+  
   bool flip = false; // bitmap is stored bottom-to-top
  
   uint32_t startTime = millis();
@@ -286,7 +286,7 @@ void handleWebToDisplay() {
       Serial.print(" / Bit Depth: "); Serial.println(depth);
       Serial.print("Planes: "); Serial.println(planes);Serial.print("Format: "); Serial.println(format);
     
-    if ((planes == 1) && (format == 0)) { // uncompressed is handled
+    if ((planes == 1) && (format == 0 || format == 3)) { // uncompressed is handled
 
       // BMP rows are padded (if needed) to 4-byte boundary
       //uint32_t rowSize = (width * depth / 8 + 3) & ~3;
@@ -304,7 +304,6 @@ void handleWebToDisplay() {
       for (uint16_t row = 0; row < h; row++) // for each line
       {
         uint8_t bits;
-        
         for (uint16_t col = 0; col < w; col++) // for each pixel
         {
           // Time to read more pixel data?
@@ -317,7 +316,6 @@ void handleWebToDisplay() {
           {
             case 1: // one bit per pixel b/w format
               {
-                valid = true;
                 if (0 == col % 8)
                 {
                   bits = buffer[buffidx++];
@@ -325,11 +323,11 @@ void handleWebToDisplay() {
                 }
                 uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
                 display.drawPixel(col, displayHeight-row, bw_color);
-                //Serial.println("c:"+ String(col));
                 bits <<= 1;
               }
               break;
-            case 4: // 4 work in progress
+              
+            case 4: // was a hard word to get here
               {
                 if (0 == col % 2) {
                   bits = buffer[buffidx++];
@@ -343,7 +341,8 @@ void handleWebToDisplay() {
                 bits <<= 1;
               }
               break;
-            case 24: // standard BMP format
+              
+             case 24: // standard BMP format
               {
                 uint16_t b = buffer[buffidx++];
                 uint16_t g = buffer[buffidx++];
@@ -352,7 +351,6 @@ void handleWebToDisplay() {
                 display.drawPixel(col, displayHeight-row, bw_color);
                 bytesRead = bytesRead +3;
               }
-              break;
           }
         } // end pixel
       } // end line
@@ -364,8 +362,11 @@ void handleWebToDisplay() {
        break;
        
     } else {
-      display.print("Compressed BMP files are not handled");
+      server.send(200, "text/html", "<div id='m'>Unsupported image format (depth:"+String(depth)+")</div>"+javascriptFadeMessage);
+      display.setCursor(10, 43);
+      display.print("Compressed BMP files are not handled.Unsupported image format (depth:"+String(depth)+")");
       display.update();
+      
     }
 //}
 
