@@ -137,11 +137,14 @@ void handle_http_root() {
   html += "<form id='f' action='/web-image' target='frame' method='POST'>";
   html += "<div class='row'><div class='col-sm-12'>";
     //html += "<label for='url'>Parse Url:</label>";
-  html += "<select name='zoom' style='width:6em' class='form-control float-right'>";
+  html += "<select name='zoom' style='width:7em' class='form-control float-right'>";
   html += "<option value='2'>2</option>";
+  html += "<option value='1.7'>1.7</option>";
   html += "<option value='1.5'>1.5</option>";
   html += "<option value='1.4'>1.4</option>";
-  html += "<option value='1.2'>1.2 20% zoomed</option>";
+  html += "<option value='1.3'>1.3</option>";
+  html += "<option value='1.2'>1.2</option>";
+  html += "<option value='1.1'>1.1 10% zoomed</option>";
   html += "<option value='' selected>zoom</option>";
   html += "<option value='1'>1 no zoom</option>";
   html += "<option value='.9'>.9 10% smaller</option>";
@@ -267,7 +270,7 @@ void handleWebToDisplay() {
   // Read all the lines of the reply from server and print them to Serial
   
   while (client.available()) {
-
+  delay(1);
   if (read16() == 0x4D42) { // BMP signature
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
