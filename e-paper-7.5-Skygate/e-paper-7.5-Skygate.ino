@@ -136,7 +136,7 @@ void handle_http_root() {
   html += "<div class='col-md-12'><h4>" + String(domainName) + ".local</h4>";
   html += "<form id='f' action='/web-image' target='frame' method='POST'>";
   html += "<div class='row'><div class='col-sm-12'>";
-    //html += "<label for='url'>Parse Url:</label>";
+
   html += "<select name='zoom' style='width:7em' class='form-control float-right'>";
   html += "<option value='2'>2</option>";
   html += "<option value='1.7'>1.7</option>";
@@ -145,14 +145,25 @@ void handle_http_root() {
   html += "<option value='1.3'>1.3</option>";
   html += "<option value='1.2'>1.2</option>";
   html += "<option value='1.1'>1.1 10% zoomed</option>";
-  html += "<option value='' selected>zoom</option>";
+  html += "<option value='' selected>Zoom</option>";
   html += "<option value='1'>1 no zoom</option>";
   html += "<option value='.9'>.9 10% smaller</option>";
   html += "<option value='.85'>.85</option>";
   html += "<option value='.8'>.8</option>";
   html += "<option value='.7'>.7</option>";
   html += "<option value='.6'>.6</option>";
-  html += "<option value='.5'>.5 half size</option></select>";
+  html += "<option value='.5'>.5 half size</option></select>&nbsp;";
+  
+  html += "<select name='brightness' style='width:8em' class='form-control float-right'>";
+  html += "<option value='150'>+5</option>";
+  html += "<option value='140'>+4</option>";
+  html += "<option value='130'>+3</option>";
+  html += "<option value='120'>+2</option>";
+  html += "<option value='110'>+1</option>";
+  html += "<option value='' selected>Brightness</option>";
+  html += "<option value='90'>-1</option>";
+  html += "</select>";
+
   html += "</div></div>";
   html += "<input placeholder='http://' id='url' name='url' type='url' class='form-control'>";
   html += "<div class='row'><div class='col-sm-12 form-group'>";
@@ -212,6 +223,7 @@ void handleDisplayWrite() {
 void handleWebToDisplay() {
   String url = "";
   String zoom = ".8";
+  String brightness = "100";
   if (server.args() > 0) {
     for (byte i = 0; i < server.args(); i++) {
       if (server.argName(i) == "url" && server.arg(i) != "") {
@@ -219,6 +231,9 @@ void handleWebToDisplay() {
       }
       if (server.argName(i) == "zoom" && server.arg(i) != "") {
         zoom = server.arg(i);
+      }
+      if (server.argName(i) == "brightness" && server.arg(i) != "") {
+        brightness = server.arg(i);
       }
     }
   }
@@ -228,7 +243,7 @@ void handleWebToDisplay() {
       return;
     }
   String host = "slosarek.eu";
-  String image = "/api/web-image/?u=" + url + "&z=" + zoom;
+  String image = "/api/web-image/?u=" + url + "&z=" + zoom + "&b=" + brightness;
    
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
