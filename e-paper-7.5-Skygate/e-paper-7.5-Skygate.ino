@@ -1,22 +1,11 @@
-/*########################   Weather Display  #############################
-   Receives and displays the weather forecast from the Weather Underground and then displays using a
-   JSON decoder wx data to display on a web page using a webserver.
-  Weather author at http://dsbird.org.uk
-
-  IP address:
-  192.168.43.115
-  MAC:
-  84:F3:EB:5A:46:9B
-
-*/
+#include <WiFiManager.h>
+//#include <strings_en.h>
 
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
 //needed for library
 #include <DNSServer.h>
-#include <WiFiManager.h>         //https://github.com/tzapu/WiFiManager
-
 #include <WiFiClient.h>
 #include <SPI.h>
 #include <GxEPD.h>
@@ -28,6 +17,8 @@
 #include <Fonts/quicksand_bold_webfont18pt8b.h>
 
 //Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
+
+ WiFiManager wm;
 
 // No MORE ssid / passwords! Use wifiManager
 //const char* password = "14237187131701431551";
@@ -65,21 +56,20 @@ void setup() {
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
   display.setFont(&quicksand_bold_webfont14pt8b);
- 
-   //WiFiManager
-   //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
-  wifiManager.setMinimumSignalQuality(40);
+  std::vector<const char *> menu = {"wifinoscan","info","sep","restart"};
+  wm.setMenu(menu);
+
+  wm.setMinimumSignalQuality(40);
    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
-  wifiManager.setAPCallback(configModeCallback);
-  wifiManager.setSaveConfigCallback(saveConfigCallback);
-  wifiManager.setDebugOutput(true); 
-  wifiManager.autoConnect(configModeAP);
+  wm.setAPCallback(configModeCallback);
+  wm.setSaveConfigCallback(saveConfigCallback);
+  wm.setDebugOutput(true); 
+  wm.autoConnect(configModeAP);
   
   // Uncomment to force startConfig (And comment autoconnect)
-  //wifiManager.startConfigPortal(configModeAP);
+  //wm.startConfigPortal(configModeAP);
   // Uncomment to reset settings
-  //wifiManager.resetSettings();
+  //wm.resetSettings();
 
   display.setTextColor(GxEPD_BLACK);
 
@@ -242,8 +232,8 @@ void handleWebToDisplay() {
       display.update();
       return;
     }
-  String host = "slosarek.eu";
-  String image = "/api/web-image/?u=" + url + "&z=" + zoom + "&b=" + brightness;
+  String host = "api.slosarek.eu";
+  String image = "/web-image/?u=" + url + "&z=" + zoom + "&b=" + brightness;
    
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
@@ -255,7 +245,6 @@ void handleWebToDisplay() {
 
   if (! client.connect(host, 80)) {
     Serial.println("connection failed");
-    client.flush();
     client.stop();
     return;
   }
@@ -266,8 +255,6 @@ void handleWebToDisplay() {
   uint8_t x = 0;
   uint8_t y = 0;
   
-  bool flip = false; // bitmap is stored bottom-to-top
- 
   uint32_t startTime = millis();
   unsigned long timeout = millis();
   while (client.available() == 0) {
@@ -283,9 +270,22 @@ void handleWebToDisplay() {
 
   long bytesRead = 32; // summing the whole read headers
   // Read all the lines of the reply from server and print them to Serial
-  
-  while (client.available()) {
-  delay(1);
+   bool connection_ok = false;
+while (client.connected())
+  {
+    String line = client.readStringUntil('\n');
+    if (!connection_ok)
+    {
+      connection_ok = line.startsWith("HTTP/1.1 200 OK");
+      Serial.println(line);
+    }
+    if (line == "\r")
+    {
+      Serial.println("headers received");
+      break;
+    }
+}
+while (client.available()) {
   if (read16() == 0x4D42) { // BMP signature
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
@@ -311,7 +311,6 @@ void handleWebToDisplay() {
       if (height < 0)
       {
         height = -height;
-        flip = false;
       }
       uint16_t w = width;
       uint16_t h = height;
@@ -386,12 +385,8 @@ void handleWebToDisplay() {
       display.update();
       
     }
-//}
-
-
-      }
   }
-         
+  }     
 }
 
 uint16_t read16()
