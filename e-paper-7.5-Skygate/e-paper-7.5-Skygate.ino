@@ -271,8 +271,9 @@ void handleWebToDisplay() {
   long bytesRead = 32; // summing the whole read headers
   // Read all the lines of the reply from server and print them to Serial
    bool connection_ok = false;
-while (client.connected())
-  {
+   // Without discarding headers is imposible to read 1 bit BMP start
+   // Discarding headers leads to not read >1 bits BMPs
+while (client.connected())  {
     String line = client.readStringUntil('\n');
     if (!connection_ok)
     {
@@ -281,12 +282,21 @@ while (client.connected())
     }
     if (line == "\r")
     {
-      Serial.println("headers received");
+      Serial.println("Headers received. Scan BMP 4D42 signature");
       break;
     }
 }
+long count = 0;
 while (client.available()) {
-  if (read16() == 0x4D42) { // BMP signature
+  count++;
+  
+  uint16_t bmp = read16();
+  Serial.print( bmp,HEX);Serial.print(" ");
+  if (0 == count % 16) {
+    Serial.println();
+  }
+  delay(1);
+  if (bmp == 0x4D42) { // BMP signature
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
     uint32_t imageOffset = read32(); // Start of image data
@@ -297,7 +307,7 @@ while (client.available()) {
     uint16_t depth = read16(); // bits per pixel
     uint32_t format = read32();
     
-      Serial.print("BMP read. File size: "); Serial.println(fileSize);
+      Serial.print("->BMP starts here. File size: "); Serial.println(fileSize);
       Serial.print("Image Offset: "); Serial.println(imageOffset);
       Serial.print("Header size: "); Serial.println(headerSize);
       Serial.print("Width * Height: "); Serial.print(String(width) + " x " + String(height));
