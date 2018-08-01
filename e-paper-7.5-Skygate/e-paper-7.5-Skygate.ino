@@ -260,9 +260,10 @@ void handleWebToDisplay() {
       return;
     }
   }
-  uint8_t buffer[3 * 10]; // pixel buffer, size for r,g,b
-  int displayWidth = display.width(); // Not used now
+  
+  int displayWidth = display.width();
   int displayHeight= display.height();// Not used now
+  uint8_t buffer[displayWidth]; // pixel buffer, size for r,g,b
 
   long bytesRead = 32; // summing the whole BMP info headers
 
@@ -277,8 +278,6 @@ while (client.available()) {
   uint16_t bmp;
   ((uint8_t *)&bmp)[0] = lastByte; // LSB
   ((uint8_t *)&bmp)[1] = clientByte; // MSB
-  //Serial.print(lastByte,HEX);
-  //Serial.print(clientByte,HEX);Serial.print(" ");
   Serial.print(bmp,HEX);Serial.print(" ");
   if (0 == count % 16) {
     Serial.println();
@@ -287,7 +286,6 @@ while (client.available()) {
   lastByte = clientByte;
   
   if (bmp == 0x4D42) { // BMP signature
-  //if (lastByte == 0x4D && clientByte == 0x42) {
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
     uint32_t imageOffset = read32(); // Start of image data
@@ -312,9 +310,11 @@ while (client.available()) {
       
       for (uint16_t row = 0; row < height; row++) // for each line
       {
+        //delay(1); // May help to avoid Wdt reset
         uint8_t bits;
         for (uint16_t col = 0; col < width; col++) // for each pixel
         {
+          yield();
           // Time to read more pixel data?
           if (buffidx >= sizeof(buffer))
           {
