@@ -63,7 +63,7 @@ void setup() {
    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
-  wm.setDebugOutput(true); 
+  wm.setDebugOutput(false); 
   wm.autoConnect(configModeAP);
   
   // Uncomment to force startConfig (And comment autoconnect)
@@ -237,7 +237,6 @@ void handleWebToDisplay() {
    
   String request;
   request  = "GET " + image + " HTTP/1.1\r\n";
-  request += "Accept: */*\r\n";
   request += "Host: " + host + "\r\n";
   request += "Connection: close\r\n";
   request += "\r\n";
@@ -252,9 +251,6 @@ void handleWebToDisplay() {
   client.flush();
   display.fillScreen(GxEPD_WHITE);
   
-  uint8_t x = 0;
-  uint8_t y = 0;
-  
   uint32_t startTime = millis();
   unsigned long timeout = millis();
   while (client.available() == 0) {
@@ -265,38 +261,33 @@ void handleWebToDisplay() {
     }
   }
   uint8_t buffer[3 * 10]; // pixel buffer, size for r,g,b
-  int displayWidth = display.width();
-  int displayHeight= display.height();
+  int displayWidth = display.width(); // Not used now
+  int displayHeight= display.height();// Not used now
 
-  long bytesRead = 32; // summing the whole read headers
-  // Read all the lines of the reply from server and print them to Serial
-   bool connection_ok = false;
-   // Without discarding headers is imposible to read 1 bit BMP start
-   // Discarding headers leads to not read >1 bits BMPs
-while (client.connected())  {
-    String line = client.readStringUntil('\n');
-    if (!connection_ok)
-    {
-      connection_ok = line.startsWith("HTTP/1.1 200 OK");
-      Serial.println(line);
-    }
-    if (line == "\r")
-    {
-      Serial.println("Headers received. Scan BMP 4D42 signature");
-      break;
-    }
-}
+  long bytesRead = 32; // summing the whole BMP info headers
+
+ // NOTE: No need to discard headers anymore, unless they contain 0x4D42
 long count = 0;
+uint8_t lastByte;
+// Start reading bits
 while (client.available()) {
   count++;
   
-  uint16_t bmp = read16();
-  Serial.print( bmp,HEX);Serial.print(" ");
+  uint8_t clientByte = client.read();
+  uint16_t bmp;
+  ((uint8_t *)&bmp)[0] = lastByte; // LSB
+  ((uint8_t *)&bmp)[1] = clientByte; // MSB
+  //Serial.print(lastByte,HEX);
+  //Serial.print(clientByte,HEX);Serial.print(" ");
+  Serial.print(bmp,HEX);Serial.print(" ");
   if (0 == count % 16) {
     Serial.println();
   }
   delay(1);
+  lastByte = clientByte;
+  
   if (bmp == 0x4D42) { // BMP signature
+  //if (lastByte == 0x4D && clientByte == 0x42) {
     uint32_t fileSize = read32();
     uint32_t creatorBytes = read32();
     uint32_t imageOffset = read32(); // Start of image data
@@ -315,23 +306,14 @@ while (client.available()) {
       Serial.print("Planes: "); Serial.println(planes);Serial.print("Format: "); Serial.println(format);
     
     if ((planes == 1) && (format == 0 || format == 3)) { // uncompressed is handled
-
-      // BMP rows are padded (if needed) to 4-byte boundary
-      //uint32_t rowSize = (width * depth / 8 + 3) & ~3;
-      if (height < 0)
-      {
-        height = -height;
-      }
-      uint16_t w = width;
-      uint16_t h = height;
       // Attempt to move pointer where image starts
       client.readBytes(buffer, imageOffset-bytesRead); 
       size_t buffidx = sizeof(buffer); // force buffer load
       
-      for (uint16_t row = 0; row < h; row++) // for each line
+      for (uint16_t row = 0; row < height; row++) // for each line
       {
         uint8_t bits;
-        for (uint16_t col = 0; col < w; col++) // for each pixel
+        for (uint16_t col = 0; col < width; col++) // for each pixel
         {
           // Time to read more pixel data?
           if (buffidx >= sizeof(buffer))
@@ -354,7 +336,7 @@ while (client.available()) {
               }
               break;
               
-            case 4: // was a hard word to get here
+            case 4: // was a hard work to get here
               {
                 if (0 == col % 2) {
                   bits = buffer[buffidx++];
@@ -391,11 +373,12 @@ while (client.available()) {
     } else {
       server.send(200, "text/html", "<div id='m'>Unsupported image format (depth:"+String(depth)+")</div>"+javascriptFadeMessage);
       display.setCursor(10, 43);
-      display.print("Compressed BMP files are not handled.Unsupported image format (depth:"+String(depth)+")");
+      display.print("Compressed BMP files are not handled. Unsupported image format (depth:"+String(depth)+")");
       display.update();
       
     }
   }
+  
   }     
 }
 
