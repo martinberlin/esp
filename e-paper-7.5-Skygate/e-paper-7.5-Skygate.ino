@@ -330,7 +330,7 @@ while (client.available()) {
                   bits = buffer[buffidx++];
                   bytesRead++;
                 }
-                uint16_t bw_color = bits & 0x80 ? GxEPD_BLACK : GxEPD_WHITE;
+                uint16_t bw_color = bits & 0x80 ? GxEPD_WHITE : GxEPD_BLACK;
                 display.drawPixel(col, displayHeight-row, bw_color);
                 bits <<= 1;
               }
