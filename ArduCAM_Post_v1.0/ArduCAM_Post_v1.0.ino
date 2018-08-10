@@ -39,7 +39,7 @@ WiFiClient client;
 char* localDomain = "cam"; // mDNS: cam.local
 
 // Makes a div id="m" containing response message to dissapear after 3 seconds
-String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},3000);</script>";
+String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},5000);</script>";
 
 //Station mode you should put your ssid and password
 const char *ssid = "KabelBox-A210"; // Put your SSID here
@@ -124,7 +124,7 @@ uint16_t full_length;
       }
   
      client.println(end_request);
-     client.flush();
+     //client.flush();
      myCAM.CS_HIGH(); 
 
   bool   skip_headers = true;
@@ -132,8 +132,15 @@ uint16_t full_length;
   String response;
   
   // Read all the lines of the reply from server and print them to Serial
-  Serial.println("RESPONSE:");
-  while(client.available()){
+    int timeout = millis() + 5000;
+  while (client.available() == 0) {
+    if (timeout - millis() < 0) {
+      Serial.println(">>> Client Timeout !");
+      client.stop();
+      return "Timeout of 5 seconds reached";
+    }
+  }
+  while(client.available()) {
     rx_line = client.readStringUntil('\r');
     Serial.println( rx_line );
     if (rx_line.length() <= 1) { // a blank line denotes end of headers
@@ -178,7 +185,7 @@ void serverCapture() {
   Serial.println(total_time, DEC);
   Serial.println(F("CAM send Done."));
   
-  server.send(200, "text/html", "<div id='m'>Click!<br>"+imageUrl+"</div>"+javascriptFadeMessage);
+  server.send(200, "text/html", "<div id='m'>Click!<br><img src='"+imageUrl+"'></div>"+javascriptFadeMessage);
 }
 
 void serverStream() {
@@ -274,7 +281,7 @@ void handleNotFound() {
   html += "<input type='submit' value='PHOTO' class='btn btn-dark'>";
   html += "</form>";
   
-  html += "<iframe name='frame'></iframe>";
+  html += "<iframe name='frame' width='800' height='600'></iframe>";
   html += "</div></div></div></main>";
   html += "</body>";
   server.send(200, "text/html", headers + html);
