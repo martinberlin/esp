@@ -185,7 +185,8 @@ void serverCapture() {
   Serial.println(total_time, DEC);
   Serial.println(F("CAM send Done."));
   
-  server.send(200, "text/html", "<div id='m'>Click!<br><img src='"+imageUrl+"'></div>"+javascriptFadeMessage);
+  server.send(200, "text/html", "<div id='m'>Photo saved: "+imageUrl+
+              "<br><img src='"+imageUrl+"'></div>"+ javascriptFadeMessage);
 }
 
 void serverStream() {
@@ -281,7 +282,7 @@ void handleNotFound() {
   html += "<input type='submit' value='PHOTO' class='btn btn-dark'>";
   html += "</form>";
   
-  html += "<iframe name='frame' width='800' height='600'></iframe>";
+  html += "<iframe name='frame' width='800' height='400'></iframe>";
   html += "</div></div></div></main>";
   html += "</body>";
   server.send(200, "text/html", headers + html);
