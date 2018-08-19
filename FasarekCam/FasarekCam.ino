@@ -35,7 +35,7 @@
 // set GPIO16 as the slave select :
 const int CS = 16;
 // was OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> does not work
-int jpegSize = OV2640_800x600; 
+int jpegSize = OV2640_1600x1200; 
 
 WiFiManager wm;
 WiFiClient client;
@@ -47,12 +47,9 @@ char* localDomain = "cam"; // mDNS: cam.local
 // Makes a div id="m" containing response message to dissapear after 3 seconds
 String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},6000);</script>";
 
-//Station mode you should put your ssid and password
-const char *ssid = "KabelBox-A210"; // Put your SSID here
-const char *password = "14237 1871 3170 1431551"; // Put your PASSWORD here
 
-
-static const size_t bufferSize = 4096;
+long full_length;
+static const size_t bufferSize = 2048;
 static uint8_t buffer[bufferSize] = {0xFF};
 
 // UPLOAD Settings
@@ -85,30 +82,37 @@ void start_capture() {
 String camCapture(ArduCAM myCAM) {
   
   uint32_t len  = myCAM.read_fifo_length();
-
-  Serial.println("camCapture fifo_length="+String(len));
+  
   if (len == 0 ) //0 kb
   {
-    Serial.println(F("Size is 0."));
+    Serial.println(F("fifo_length = 0"));
+    return "Could not read fifo (length is 0)";
   }
   myCAM.CS_LOW();
   myCAM.set_fifo_burst();
   SPI.transfer(0xFF);
 
-  
   if (client.connect(host, 80)) { 
-    while(client.available()) {String line = client.readStringUntil('\r');}  // Empty wifi receive bufffer
+    while(client.available()) {
+      String line = client.readStringUntil('\r');
+    }  // Empty wifi receive bufffer
 
   start_request = start_request + 
   "\n--"+boundary+"\n" + 
   "Content-Disposition: form-data; name=\"upload\"; filename=\"CAM.JPG\"\n" + 
   "Content-Transfer-Encoding: binary\n\n";
-uint16_t full_length;
+  
+   
+    Serial.println("start_request len: "+String(start_request.length()));
+    Serial.println("end_request len: "+String(end_request.length()));
+    Serial.println("camCapture fifo_length="+String(len));
+    
     full_length = start_request.length() + len + end_request.length();
+    Serial.print(full_length);
 
     Serial.println("POST "+url+" HTTP/1.1");
     Serial.println("Host: "+host);
-    Serial.println("Content-Length: "); Serial.print(full_length);
+    Serial.println("Content-Length: "+String(full_length)); Serial.println();
     client.println("POST "+url+" HTTP/1.1");
     client.println("Host: "+host);
     client.println("Content-Type: multipart/form-data; boundary="+boundary);
@@ -191,6 +195,7 @@ void serverCapture() {
   server.send(200, "text/html", "<div id='m'>Photo taken! "+imageUrl+
               "<br><img src='"+imageUrl+"' width='400'></div>"+ javascriptFadeMessage);
 }
+
 
 void serverStream() {
   WiFiClient client = server.client();
@@ -289,6 +294,7 @@ void handleNotFound() {
 
 }
 
+
 void setup() {
 
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
@@ -298,9 +304,9 @@ void setup() {
    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
-  wm.setDebugOutput(false); 
+  wm.setDebugOutput(true); 
   wm.autoConnect(configModeAP);
-  
+
   uint8_t vid, pid;
   uint8_t temp;
 #if defined(__SAM3X8E__)
@@ -360,7 +366,6 @@ void setup() {
   myCAM.set_format(JPEG);
   myCAM.InitCAM();
 
-  
 #if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
   Serial.println("JPEG_Size:"+String(jpegSize));
   myCAM.OV2640_set_JPEG_size(jpegSize); 
@@ -373,19 +378,6 @@ void setup() {
 #endif
 
   myCAM.clear_fifo_flag();
-
-
-    // Connect to WiFi network
-    Serial.print(F("Connecting to "));
-    Serial.println(ssid);
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.print(F("."));
-    }
-    Serial.println(F("WiFi connected"));
-    Serial.println("");
-    Serial.println(WiFi.localIP());
 
    // Set up mDNS responder:
   // - first argument is the domain name, in this example
@@ -408,9 +400,7 @@ void setup() {
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println(F("Server started"));
-
-  //serverCapture();
-}
+  }
 
 void loop() {
   server.handleClient();
