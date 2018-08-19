@@ -13,7 +13,7 @@
 
 // This program requires the ArduCAM V4.0.0 (or later) library and ArduCAM ESP8266 2MP/5MP camera
 // and use Arduino IDE 1.6.8 compiler or above
-
+#include <WiFiManager.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
@@ -35,11 +35,12 @@
 // set GPIO16 as the slave select :
 const int CS = 16;
 
+WiFiManager wm;
 WiFiClient client;
 char* localDomain = "cam"; // mDNS: cam.local
 
 // Makes a div id="m" containing response message to dissapear after 3 seconds
-String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},5000);</script>";
+String javascriptFadeMessage = "<script>setTimeout(function(){document.getElementById('m').innerHTML='';},6000);</script>";
 
 //Station mode you should put your ssid and password
 const char *ssid = "KabelBox-A210"; // Put your SSID here
@@ -185,8 +186,8 @@ void serverCapture() {
   Serial.println(total_time, DEC);
   Serial.println(F("CAM send Done."));
   
-  server.send(200, "text/html", "<div id='m'>Photo saved: "+imageUrl+
-              "<br><img src='"+imageUrl+"'></div>"+ javascriptFadeMessage);
+  server.send(200, "text/html", "<div id='m'>Photo taken! "+imageUrl+
+              "<br><img src='"+imageUrl+"' width='400'></div>"+ javascriptFadeMessage);
 }
 
 void serverStream() {
@@ -302,6 +303,17 @@ void handleNotFound() {
 }
 
 void setup() {
+
+  std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
+  wm.setMenu(menu);
+
+  wm.setMinimumSignalQuality(40);
+   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
+  wm.setAPCallback(configModeCallback);
+  wm.setSaveConfigCallback(saveConfigCallback);
+  wm.setDebugOutput(false); 
+  wm.autoConnect(configModeAP);
+  
   uint8_t vid, pid;
   uint8_t temp;
 #if defined(__SAM3X8E__)

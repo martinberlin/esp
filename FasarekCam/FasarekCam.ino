@@ -34,6 +34,8 @@
 #endif
 // set GPIO16 as the slave select :
 const int CS = 16;
+// was OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> does not work
+int jpegSize = OV2640_800x600; 
 
 WiFiManager wm;
 WiFiClient client;
@@ -52,7 +54,7 @@ const char *password = "14237 1871 3170 1431551"; // Put your PASSWORD here
 
 static const size_t bufferSize = 4096;
 static uint8_t buffer[bufferSize] = {0xFF};
-static uint8_t rbuffer[1024] = {0xFF};
+
 // UPLOAD Settings
   String host = "api.slosarek.eu";
   String url = "/camera-uploads/upload-receive.php";
@@ -79,13 +81,12 @@ void start_capture() {
   myCAM.start_capture();
 }
 
+
 String camCapture(ArduCAM myCAM) {
   
-   uint32_t len  = myCAM.read_fifo_length();
-  if (len >= MAX_FIFO_SIZE) //8M
-  {
-    Serial.println(F("Over size."));
-  }
+  uint32_t len  = myCAM.read_fifo_length();
+
+  Serial.println("camCapture fifo_length="+String(len));
   if (len == 0 ) //0 kb
   {
     Serial.println(F("Size is 0."));
@@ -116,7 +117,6 @@ uint16_t full_length;
     client.print(start_request);
 
   // Read image data from Arducam mini and send away to internet
-  static const size_t bufferSize = 1024; // original value 4096 caused split pictures
   static uint8_t buffer[bufferSize] = {0xFF};
   while (len) {
       size_t will_copy = (len < bufferSize) ? len : bufferSize;
@@ -203,11 +203,7 @@ void serverStream() {
     start_capture();
     while (!myCAM.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK));
     size_t len = myCAM.read_fifo_length();
-    if (len >= MAX_FIFO_SIZE) //8M
-    {
-      Serial.println(F("Over size."));
-      continue;
-    }
+
     if (len == 0 ) //0 kb
     {
       Serial.println(F("Size is 0."));
@@ -221,6 +217,7 @@ void serverStream() {
     response = "--frame\r\n";
     response += "Content-Type: image/jpeg\r\n\r\n";
     server.sendContent(response);
+    
     while ( len-- )
     {
       temp_last = temp;
@@ -290,18 +287,6 @@ void handleNotFound() {
   html += "</body>";
   server.send(200, "text/html", headers + html);
 
-  if (server.hasArg("ql")) {
-    int ql = server.arg("ql").toInt();
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-    myCAM.OV2640_set_JPEG_size(ql);
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-    myCAM.OV5640_set_JPEG_size(ql);
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-    myCAM.OV5642_set_JPEG_size(ql);
-#endif
-    delay(1000);
-    Serial.println("QL change to: " + server.arg("ql"));
-  }
 }
 
 void setup() {
@@ -374,8 +359,12 @@ void setup() {
   //Change to JPEG capture mode and initialize the OV2640 module
   myCAM.set_format(JPEG);
   myCAM.InitCAM();
+
+  
 #if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-  myCAM.OV2640_set_JPEG_size(OV2640_800x600);
+  Serial.println("JPEG_Size:"+String(jpegSize));
+  myCAM.OV2640_set_JPEG_size(jpegSize); 
+  
 #elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
   myCAM.OV5640_set_JPEG_size(OV5640_320x240);
 #elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
