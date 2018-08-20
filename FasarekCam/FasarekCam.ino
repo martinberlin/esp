@@ -22,6 +22,8 @@
 #include <ArduCAM.h>
 #include <SPI.h>
 #include "memorysaver.h"
+#include "Button2.h";
+
 #if !(defined ESP8266 )
 #error Please select the ArduCAM ESP8266 UNO board in the Tools/Board
 #endif
@@ -35,7 +37,13 @@
 // set GPIO16 as the slave select :
 const int CS = 16;
 // was OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> does not work
-int jpegSize = OV2640_1600x1200; 
+int jpegSize = OV2640_1280x1024; 
+// When timelapse is on will capture picture every N minutes
+boolean captureTimeLapse;
+const unsigned long timeLapse = 5 * 60 * 1000UL; // 5 minutes
+static unsigned long lastTimeLapse;
+Button2 buttonShutter = Button2(D3);
+
 
 WiFiManager wm;
 WiFiClient client;
@@ -49,7 +57,7 @@ String javascriptFadeMessage = "<script>setTimeout(function(){document.getElemen
 
 
 long full_length;
-static const size_t bufferSize = 2048;
+static const size_t bufferSize = 4096;
 static uint8_t buffer[bufferSize] = {0xFF};
 
 // UPLOAD Settings
@@ -84,6 +92,11 @@ void setup() {
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
   wm.autoConnect(configModeAP);
+
+// Button events
+ buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
+ buttonShutter.setDoubleClickHandler(shutterDoubleClick);
+ buttonShutter.setLongClickHandler(shutterLongClick);
   
 while (WiFi.status() != WL_CONNECTED) {
    delay(500);
@@ -184,6 +197,8 @@ while (WiFi.status() != WL_CONNECTED) {
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println(F("Server started"));
+
+  lastTimeLapse = millis() + timeLapse;  // Initialize timeLapse
   }
 
 void start_capture() {
@@ -386,6 +401,9 @@ void serverStream() {
   }
 }
 
+/**
+ * This is the home page and also the page that comes when a 404 is generated
+ */
 void handleNotFound() {
   String headers = "<head><link rel=\"stylesheet\" href=\"https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css\">";
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
@@ -397,8 +415,9 @@ void handleNotFound() {
   html += "</form>";
   
   html += "<form id='f1' action='/capture' target='frame' method='GET'>";
-  html += "<input type='submit' value='PHOTO' class='btn btn-dark'>";
-  html += "</form>";
+  html += "<div class='row'><div class='col-md-12'>";
+  html += "<input type='submit' value='PHOTO' class='btn btn-lg btn-dark form-control'>";
+  html += "</div></div></form>";
   
   html += "<iframe name='frame' width='800' height='400'></iframe>";
   html += "</div></div></div></main>";
@@ -407,9 +426,18 @@ void handleNotFound() {
 
 }
 
+
 void loop() {
   server.handleClient();
+  buttonShutter.loop();
+  if (captureTimeLapse && millis() >= lastTimeLapse) {
+    lastTimeLapse += timeLapse;
+    serverCapture();
+    Serial.println("Timelapse captured");
+  }
 }
+
+
 void configModeCallback (WiFiManager *myWiFiManager) {
   message = "CAM can't get online. Entering config mode. Please connect to access point "+String(configModeAP);
   Serial.println(message);
@@ -422,4 +450,20 @@ void saveConfigCallback() {
   message += "http://cam.local or http://"+WiFi.localIP().toString();
   Serial.println(message);
   Serial.println(WiFi.localIP().toString());
+}
+
+void shutterDoubleClick(Button2& btn) {
+    Serial.println("Disable timelapse");
+    captureTimeLapse = false;
+}
+void shutterReleased(Button2& btn) {
+    Serial.println("Released");
+    captureTimeLapse = false;
+    serverCapture();
+}
+void shutterLongClick(Button2& btn) {
+    Serial.println("long click: Enable timelapse and capture first");
+    captureTimeLapse = true;
+    lastTimeLapse = millis() + timeLapse;
+    serverCapture();
 }
