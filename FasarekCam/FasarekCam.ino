@@ -40,6 +40,8 @@ const int CS = 16;
 int jpegSize = OV2640_1280x1024; 
 // When timelapse is on will capture picture every N minutes
 boolean captureTimeLapse;
+boolean isStreaming = false;
+
 const unsigned long timeLapse = 5 * 60 * 1000UL; // 5 minutes
 static unsigned long lastTimeLapse;
 Button2 buttonShutter = Button2(D3);
@@ -299,6 +301,7 @@ String camCapture(ArduCAM myCAM) {
 
 
 void serverCapture() {
+  isStreaming = false;
   start_capture();
   Serial.println(F("CAM Capturing"));
 
@@ -326,13 +329,14 @@ void serverCapture() {
 
 
 void serverStream() {
+  isStreaming = true;
   WiFiClient client = server.client();
 
   String response = "HTTP/1.1 200 OK\r\n";
   response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
   server.sendContent(response);
 
-  while (1) {
+  while (isStreaming) {
     start_capture();
     while (!myCAM.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK));
     size_t len = myCAM.read_fifo_length();
