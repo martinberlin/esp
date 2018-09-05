@@ -466,8 +466,7 @@ void shutterReleased(Button2& btn) {
     serverCapture();
 }
 void shutterLongClick(Button2& btn) {
-    Serial.println("long click: Enable timelapse and capture first");
+    Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
     lastTimeLapse = millis() + timeLapse;
-    serverCapture();
 }
