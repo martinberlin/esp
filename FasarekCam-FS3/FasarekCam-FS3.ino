@@ -24,19 +24,15 @@
 #include "memorysaver.h"
 #include "Button2.h";
 
-//Note on memorysaver selected:
-// #define OV2640_MINI_2MP
-// And on Step 2: #define OV2640_CAM
-//This demo can only work on OV2640_MINI_2MP or ARDUCAM_SHIELD_V2 platform.
-#if !(defined (OV2640_MINI_2MP)||defined (OV5640_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP_PLUS) \
-    || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) \
-    ||(defined (ARDUCAM_SHIELD_V2) && (defined (OV2640_CAM) || defined (OV5640_CAM) || defined (OV5642_CAM))))
+//This demo can only work on OV5642_MINI_5MP_PLUS platform.
+#if !(defined (OV5642_MINI_5MP_PLUS))
 #error Please select the hardware platform and camera module in the ../libraries/ArduCAM/memorysaver.h file
 #endif
+
 // set GPIO16 as the slave select :
 const int CS = 16;
-// was OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> does not work
-int jpegSize = OV2640_1280x1024; 
+// OV5640_2048x1536 120Kb
+int jpegSize = OV5642_1280x960; 
 // When timelapse is on will capture picture every N minutes
 boolean captureTimeLapse;
 boolean isStreaming = false;
@@ -73,11 +69,8 @@ int i = 0;
 bool is_header = false;
 
 ESP8266WebServer server(80);
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-ArduCAM myCAM(OV2640, CS);
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-ArduCAM myCAM(OV5640, CS);
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
+
+#if defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
 ArduCAM myCAM(OV5642, CS);
 #endif
 
@@ -129,53 +122,22 @@ while (WiFi.status() != WL_CONNECTED) {
     Serial.println(F("SPI1 interface Error!"));
     while (1);
   }
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-  //Check if the camera module type is OV2640
-  myCAM.wrSensorReg8_8(0xff, 0x01);
-  myCAM.rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
-  if ((vid != 0x26 ) && (( pid != 0x41 ) || ( pid != 0x42 )))
-    Serial.println(F("Can't find OV2640 module!"));
-  else
-    Serial.println(F("OV2640 detected."));
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-  //Check if the camera module type is OV5640
-  myCAM.wrSensorReg16_8(0xff, 0x01);
-  myCAM.rdSensorReg16_8(OV5640_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg16_8(OV5640_CHIPID_LOW, &pid);
-  if ((vid != 0x56) || (pid != 0x40))
-    Serial.println(F("Can't find OV5640 module!"));
-  else
-    Serial.println(F("OV5640 detected."));
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-  //Check if the camera module type is OV5642
+  myCAM.clear_bit(ARDUCHIP_GPIO,GPIO_PWDN_MASK); //disable low power
+  delay(100);
+//Check if the camera module type is OV5642
   myCAM.wrSensorReg16_8(0xff, 0x01);
   myCAM.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
   myCAM.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
-  if ((vid != 0x56) || (pid != 0x42)) {
-    Serial.println(F("Can't find OV5642 module!"));
-  }
-  else
-    Serial.println(F("OV5642 detected."));
-#endif
-
-
-  //Change to JPEG capture mode and initialize the OV2640 module
-  myCAM.set_format(JPEG);
-  myCAM.InitCAM();
-
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-  Serial.println("JPEG_Size:"+String(jpegSize));
-  myCAM.OV2640_set_JPEG_size(jpegSize); 
-  
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-  myCAM.OV5640_set_JPEG_size(OV5640_320x240);
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-  myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
-  myCAM.OV5640_set_JPEG_size(OV5642_320x240);
-#endif
-
-  myCAM.clear_fifo_flag();
+   if((vid != 0x56) || (pid != 0x42))
+   Serial.println("Can't find OV5642 module!");
+   else
+   Serial.println("OV5642 detected.");
+   
+   myCAM.set_format(JPEG);
+   myCAM.InitCAM();
+   myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
+   myCAM.OV5642_set_JPEG_size(jpegSize);
+delay(500);
 
    // Set up mDNS responder:
   // - first argument is the domain name, in this example
@@ -212,14 +174,12 @@ String camCapture(ArduCAM myCAM) {
   
   uint32_t len  = myCAM.read_fifo_length();
   
-  if (len == 0 ) //0 kb
-  {
+  if (len == 0 ){
     Serial.println(F("fifo_length = 0"));
     return "Could not read fifo (length is 0)";
   }
   myCAM.CS_LOW();
   myCAM.set_fifo_burst();
-  SPI.transfer(0xFF);
 
   if (client.connect(host, 80)) { 
     while(client.available()) {
