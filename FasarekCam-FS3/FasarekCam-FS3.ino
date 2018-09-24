@@ -29,6 +29,14 @@
 #error Please select the hardware platform and camera module in the ../libraries/ArduCAM/memorysaver.h file
 #endif
 
+// UPLOAD Settings
+  String host = "api.slosarek.eu";
+  String url = "/camera-uploads/upload-caf.php";
+  String start_request = "";
+  String boundary = "XXXsecuritycamXXX";
+  String end_request = "\n--"+boundary+"--\n";
+  
+
 // set GPIO16 as the slave select :
 const int CS = 16;
 // OV5640_2048x1536 120Kb
@@ -56,14 +64,6 @@ String javascriptFadeMessage = "<script>setTimeout(function(){document.getElemen
 long full_length;
 static const size_t bufferSize = 4096;
 static uint8_t buffer[bufferSize] = {0xFF};
-
-// UPLOAD Settings
-  String host = "api.slosarek.eu";
-  String url = "/camera-uploads/upload-receive.php";
-  String start_request = "";
-  String boundary = "XXXsecuritycamXXX";
-  String end_request = "\n--"+boundary+"--\n";
-  
 uint8_t temp = 0, temp_last = 0;
 int i = 0;
 bool is_header = false;
