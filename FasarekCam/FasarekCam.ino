@@ -1,10 +1,8 @@
 // ArduCAM Mini demo (C)2017 Lee
 // Web: http://www.ArduCAM.com
 // This program is a demo of how to use most of the functions
-// of the library with ArduCAM ESP8266 2MP/5MP camera.
-// This demo was made for ArduCAM ESP8266 2MP/5MP Camera.
-// It can take photo and send to the Web.
-// It can take photo continuously as video streaming and send to the Web.
+// of the library with ArduCAM ESP8266 2MP camera.
+
 // The demo sketch will do the following tasks:
 // 1. Set the camera to JPEG output mode.
 // 2. if server.on("/capture", HTTP_GET, serverCapture),it can take photo and send to the Web.
@@ -28,15 +26,13 @@
 // #define OV2640_MINI_2MP
 // And on Step 2: #define OV2640_CAM
 //This demo can only work on OV2640_MINI_2MP or ARDUCAM_SHIELD_V2 platform.
-#if !(defined (OV2640_MINI_2MP)||defined (OV5640_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP_PLUS) \
-    || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) \
-    ||(defined (ARDUCAM_SHIELD_V2) && (defined (OV2640_CAM) || defined (OV5640_CAM) || defined (OV5642_CAM))))
+#if !(defined (OV2640_MINI_2MP))
 #error Please select the hardware platform and camera module in the ../libraries/ArduCAM/memorysaver.h file
 #endif
 // set GPIO16 as the slave select :
 const int CS = 16;
-// was OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> does not work
-int jpegSize = OV2640_1280x1024; 
+// OV2640_800x600 OV2640_1280x1024 -> last max resolution working OV2640_1600x1200 -> Max. resolution 2MP
+int jpegSize = OV2640_1600x1200; 
 // When timelapse is on will capture picture every N minutes
 boolean captureTimeLapse;
 boolean isStreaming = false;
@@ -73,13 +69,8 @@ int i = 0;
 bool is_header = false;
 
 ESP8266WebServer server(80);
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
+
 ArduCAM myCAM(OV2640, CS);
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-ArduCAM myCAM(OV5640, CS);
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-ArduCAM myCAM(OV5642, CS);
-#endif
 
 
 void setup() {
@@ -138,42 +129,13 @@ while (WiFi.status() != WL_CONNECTED) {
     Serial.println(F("Can't find OV2640 module!"));
   else
     Serial.println(F("OV2640 detected."));
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-  //Check if the camera module type is OV5640
-  myCAM.wrSensorReg16_8(0xff, 0x01);
-  myCAM.rdSensorReg16_8(OV5640_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg16_8(OV5640_CHIPID_LOW, &pid);
-  if ((vid != 0x56) || (pid != 0x40))
-    Serial.println(F("Can't find OV5640 module!"));
-  else
-    Serial.println(F("OV5640 detected."));
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-  //Check if the camera module type is OV5642
-  myCAM.wrSensorReg16_8(0xff, 0x01);
-  myCAM.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
-  if ((vid != 0x56) || (pid != 0x42)) {
-    Serial.println(F("Can't find OV5642 module!"));
-  }
-  else
-    Serial.println(F("OV5642 detected."));
 #endif
-
 
   //Change to JPEG capture mode and initialize the OV2640 module
   myCAM.set_format(JPEG);
   myCAM.InitCAM();
-
-#if defined (OV2640_MINI_2MP) || defined (OV2640_CAM)
-  Serial.println("JPEG_Size:"+String(jpegSize));
   myCAM.OV2640_set_JPEG_size(jpegSize); 
-  
-#elif defined (OV5640_MINI_5MP_PLUS) || defined (OV5640_CAM)
-  myCAM.OV5640_set_JPEG_size(OV5640_320x240);
-#elif defined (OV5642_MINI_5MP_PLUS) || defined (OV5642_MINI_5MP) || defined (OV5642_MINI_5MP_BIT_ROTATION_FIXED) ||(defined (OV5642_CAM))
-  myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
-  myCAM.OV5640_set_JPEG_size(OV5642_320x240);
-#endif
+  Serial.println("JPEG_Size:"+String(jpegSize));
 
   myCAM.clear_fifo_flag();
 
