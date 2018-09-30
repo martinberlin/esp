@@ -39,8 +39,9 @@ boolean isStreaming = false;
 
 const unsigned long timeLapse = 5 * 60 * 1000UL; // 5 minutes
 static unsigned long lastTimeLapse;
+// Outputs
 Button2 buttonShutter = Button2(D3);
-
+const int ledStatus = D4;
 
 WiFiManager wm;
 WiFiClient client;
@@ -108,7 +109,8 @@ while (WiFi.status() != WL_CONNECTED) {
 
   // set the CS as an output:
   pinMode(CS, OUTPUT);
-
+  pinMode(ledStatus, OUTPUT);
+  
   // initialize SPI:
   SPI.begin();
   SPI.setFrequency(4000000); //4MHz
@@ -404,12 +406,14 @@ void loop() {
 
 
 void configModeCallback (WiFiManager *myWiFiManager) {
+  digitalWrite(ledStatus, HIGH);
   message = "CAM can't get online. Entering config mode. Please connect to access point "+String(configModeAP);
   Serial.println(message);
   Serial.println(myWiFiManager->getConfigPortalSSID());
 }
 
 void saveConfigCallback() {
+  digitalWrite(ledStatus, LOW);
   message = "WiFi configuration saved. ";
   message += "On next restart will connect automatically. Display is online: ";
   message += "http://cam.local or http://"+WiFi.localIP().toString();
