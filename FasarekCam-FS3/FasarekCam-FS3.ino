@@ -47,8 +47,9 @@ boolean isStreaming = false;
 
 const unsigned long timeLapse = 5 * 60 * 1000UL; // 5 minutes
 static unsigned long lastTimeLapse;
+// Outputs
 Button2 buttonShutter = Button2(D3);
-
+const int ledStatus = D4;
 
 WiFiManager wm;
 WiFiClient client;
@@ -76,6 +77,9 @@ ArduCAM myCAM(OV5642, CS);
 
 
 void setup() {
+    // set the Chip Select and ledStatus as an output:
+  pinMode(CS, OUTPUT);
+  pinMode(ledStatus, OUTPUT);
 
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
   wm.setMenu(menu);
@@ -260,6 +264,8 @@ String camCapture(ArduCAM myCAM) {
 
 
 void serverCapture() {
+  digitalWrite(ledStatus, HIGH);
+  
   isStreaming = false;
   start_capture();
   Serial.println(F("CAM Capturing"));
@@ -281,7 +287,8 @@ void serverCapture() {
   Serial.print(F("send total_time used (in miliseconds):"));
   Serial.println(total_time, DEC);
   Serial.println(F("CAM send Done."));
-  
+
+  digitalWrite(ledStatus, LOW);
   server.send(200, "text/html", "<div id='m'>Photo taken! "+imageUrl+
               "<br><img src='"+imageUrl+"' width='400'></div>"+ javascriptFadeMessage);
 }
@@ -402,6 +409,7 @@ void loop() {
 
 
 void configModeCallback (WiFiManager *myWiFiManager) {
+  digitalWrite(ledStatus, HIGH);
   message = "CAM can't get online. Entering config mode. Please connect to access point "+String(configModeAP);
   Serial.println(message);
   Serial.println(myWiFiManager->getConfigPortalSSID());
@@ -416,15 +424,18 @@ void saveConfigCallback() {
 }
 
 void shutterDoubleClick(Button2& btn) {
+    digitalWrite(ledStatus, LOW);
     Serial.println("Disable timelapse");
     captureTimeLapse = false;
 }
 void shutterReleased(Button2& btn) {
+    digitalWrite(ledStatus, LOW);
     Serial.println("Released");
     captureTimeLapse = false;
     serverCapture();
 }
 void shutterLongClick(Button2& btn) {
+    digitalWrite(ledStatus, HIGH);
     Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
     lastTimeLapse = millis() + timeLapse;
