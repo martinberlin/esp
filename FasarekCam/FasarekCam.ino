@@ -75,12 +75,15 @@ ArduCAM myCAM(OV2640, CS);
 
 
 void setup() {
-
+    // set the CS as an output:
+  pinMode(CS, OUTPUT);
+  pinMode(ledStatus, OUTPUT);
+  
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
   wm.setMenu(menu);
 
   wm.setMinimumSignalQuality(40);
-   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
+  // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
@@ -91,12 +94,6 @@ void setup() {
  buttonShutter.setDoubleClickHandler(shutterDoubleClick);
  buttonShutter.setLongClickHandler(shutterLongClick);
   
-while (WiFi.status() != WL_CONNECTED) {
-   delay(500);
-   Serial.print(".");
-}
-  Serial.println("Connected. LocalIP: "+ String( WiFi.localIP() ) );
-  
   uint8_t vid, pid;
   uint8_t temp;
 #if defined(__SAM3X8E__)
@@ -106,10 +103,6 @@ while (WiFi.status() != WL_CONNECTED) {
 #endif
   Serial.begin(115200);
   Serial.println(F("ArduCAM Start!"));
-
-  // set the CS as an output:
-  pinMode(CS, OUTPUT);
-  pinMode(ledStatus, OUTPUT);
   
   // initialize SPI:
   SPI.begin();
@@ -264,12 +257,13 @@ String camCapture(ArduCAM myCAM) {
 
 
 void serverCapture() {
+  digitalWrite(ledStatus, HIGH);
+  
   isStreaming = false;
   start_capture();
   Serial.println(F("CAM Capturing"));
 
   int total_time = 0;
-
   total_time = millis();
   while (!myCAM.get_bit(ARDUCHIP_TRIG, CAP_DONE_MASK));
   total_time = millis() - total_time;
@@ -286,6 +280,7 @@ void serverCapture() {
   Serial.println(total_time, DEC);
   Serial.println(F("CAM send Done."));
   
+  digitalWrite(ledStatus, LOW);
   server.send(200, "text/html", "<div id='m'>Photo taken! "+imageUrl+
               "<br><img src='"+imageUrl+"' width='400'></div>"+ javascriptFadeMessage);
 }
@@ -413,7 +408,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 }
 
 void saveConfigCallback() {
-  digitalWrite(ledStatus, LOW);
+  digitalWrite(ledStatus, HIGH);
   message = "WiFi configuration saved. ";
   message += "On next restart will connect automatically. Display is online: ";
   message += "http://cam.local or http://"+WiFi.localIP().toString();
@@ -422,15 +417,18 @@ void saveConfigCallback() {
 }
 
 void shutterDoubleClick(Button2& btn) {
+    digitalWrite(ledStatus, LOW);
     Serial.println("Disable timelapse");
     captureTimeLapse = false;
 }
 void shutterReleased(Button2& btn) {
+    digitalWrite(ledStatus, LOW);
     Serial.println("Released");
     captureTimeLapse = false;
     serverCapture();
 }
 void shutterLongClick(Button2& btn) {
+    digitalWrite(ledStatus, HIGH);
     Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
     lastTimeLapse = millis() + timeLapse;
