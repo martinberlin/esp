@@ -161,6 +161,8 @@ delay(500);
   // Start the server
   server.on("/capture", HTTP_GET, serverCapture);
   server.on("/stream", HTTP_GET, serverStream);
+  server.on("/timelapse/start", HTTP_GET, serverStartTimelapse);
+  server.on("/timelapse/stop", HTTP_GET, serverStopTimelapse);
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println(F("Server started"));
@@ -221,6 +223,7 @@ String camCapture(ArduCAM myCAM) {
       if (!client.connected()) break;
       client.write(&buffer[0], will_copy);
       len -= will_copy;
+      delay(1);
       }
   
      client.println(end_request);
@@ -379,8 +382,11 @@ void handleNotFound() {
   headers += "<meta name='viewport' content='width=device-width,initial-scale=1'></head>";
   String html = "<body><main role='main'><div class='container-fluid'><div class='row'>";
   html += "<div class='col-md-12'><h4>" + String(localDomain) + ".local</h4>";
-
-    html += "<form id='f2' action='/stream' target='frame' method='GET'>";
+  
+  html += "<a href='/timelapse/start'>Start timelapse</a> &nbsp;&nbsp;&nbsp";
+  html += "<a href='/timelapse/stop'>Stop timelapse</a>";
+  
+  html += "<form id='f2' action='/stream' target='frame' method='GET'>";
   html += "<input type='submit' value='Stream' class='btn btn-light'>";
   html += "</form>";
   
@@ -394,6 +400,21 @@ void handleNotFound() {
   html += "</body>";
   server.send(200, "text/html", headers + html);
 
+}
+
+void serverStartTimelapse() {
+    digitalWrite(ledStatus, HIGH);
+    Serial.println("long click: Enable timelapse");
+    captureTimeLapse = true;
+    lastTimeLapse = millis() + timeLapse;
+    server.send(200, "text/html", "<div id='m'>Start Timelapse</div>"+ javascriptFadeMessage);
+}
+
+void serverStopTimelapse() {
+    digitalWrite(ledStatus, LOW);
+    Serial.println("Disable timelapse");
+    captureTimeLapse = false;
+    server.send(200, "text/html", "<div id='m'>Stop Timelapse</div>"+ javascriptFadeMessage);
 }
 
 
@@ -435,8 +456,5 @@ void shutterReleased(Button2& btn) {
     serverCapture();
 }
 void shutterLongClick(Button2& btn) {
-    digitalWrite(ledStatus, HIGH);
-    Serial.println("long click: Enable timelapse");
-    captureTimeLapse = true;
-    lastTimeLapse = millis() + timeLapse;
+    serverStartTimelapse();
 }
