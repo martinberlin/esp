@@ -37,7 +37,7 @@ int jpegSize = OV2640_1600x1200;
 boolean captureTimeLapse;
 boolean isStreaming = false;
 
-const unsigned long timeLapse = 5 * 60 * 1000UL; // 5 minutes
+const unsigned long timeLapse = 1 * 60 * 1000UL; // 5 minutes
 static unsigned long lastTimeLapse;
 // Outputs
 Button2 buttonShutter = Button2(D3);
@@ -60,9 +60,9 @@ static uint8_t buffer[bufferSize] = {0xFF};
 
 // UPLOAD Settings
   String host = "api.slosarek.eu";
-  String url = "/camera-uploads/upload-receive.php";
+  String url = "/camera-uploads/upload.php?f=2018";
   String start_request = "";
-  String boundary = "XXXsecuritycamXXX";
+  String boundary = "_cam_";
   String end_request = "\n--"+boundary+"--\n";
   
 uint8_t temp = 0, temp_last = 0;
@@ -142,7 +142,7 @@ void setup() {
   if (!MDNS.begin(localDomain)) {
     Serial.println("Error setting up MDNS responder!");
     while(1) { 
-      delay(1000);
+      delay(500);
     }
   }
   // Add service to MDNS-SD
@@ -173,6 +173,11 @@ String camCapture(ArduCAM myCAM) {
   {
     Serial.println(F("fifo_length = 0"));
     return "Could not read fifo (length is 0)";
+  }
+  // Check if gpio 16 (Chip Select) is not taking a picture already
+  if (digitalRead(CS) == LOW) {
+    Serial.println("CS is LOW: Taking a picture already");
+    return "Taking a picture already";
   }
   myCAM.CS_LOW();
   myCAM.set_fifo_burst();
