@@ -119,21 +119,23 @@ void setup() {
   }
 #if defined (OV5642_MINI_5MP_PLUS) 
   //Check if the camera module type is OV5642
-  myCAM.wrSensorReg8_8(0xff, 0x01);
-  myCAM.rdSensorReg8_8(OV5642_CHIPID_HIGH, &vid);
-  myCAM.rdSensorReg8_8(OV5642_CHIPID_LOW, &pid);
+  myCAM.wrSensorReg16_8(0xff, 0x01);
+  myCAM.rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
+  myCAM.rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
    if((vid != 0x56) || (pid != 0x42))
-     Serial.println("Can't find OV5642 module!");
+   Serial.println("Can't find OV5642 module!");
    else
-     Serial.println("OV5642 detected.");
+   Serial.println("OV5642 detected.");
 #endif
 
   //Change to JPEG capture mode and initialize the OV2640 module
   myCAM.set_format(JPEG);
   myCAM.InitCAM();
+  myCAM.write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);   //VSYNC is active HIGH
+
   myCAM.OV5642_set_JPEG_size(jpegSize); 
   Serial.println("JPEG_Size:"+String(jpegSize));
-
+delay(500);
   myCAM.clear_fifo_flag();
 
    // Set up mDNS responder:
