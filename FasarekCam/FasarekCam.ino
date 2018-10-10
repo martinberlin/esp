@@ -10,7 +10,7 @@
 //streaming and send to the Web.
 
 // This program requires the ArduCAM V4.0.0 (or later) library and ArduCAM ESP8266 2MP/5MP camera
-// and use Arduino IDE 1.6.8 compiler or above
+#include <EEPROM.h>
 #include <WiFiManager.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -36,9 +36,12 @@ int jpegSize = OV2640_1600x1200;
 // When timelapse is on will capture picture every N minutes
 boolean captureTimeLapse;
 boolean isStreaming = false;
-
-const unsigned long timeLapse = 1 * 60 * 1000UL; // 5 minutes
 static unsigned long lastTimeLapse;
+
+// Settings that are saved in EPROM
+String slave_cam_ip;
+unsigned long timelapse; // Now set in WiFi Manager
+
 // Outputs
 Button2 buttonShutter = Button2(D3);
 const int ledStatus = D4;
@@ -59,12 +62,12 @@ static const size_t bufferSize = 4096;
 static uint8_t buffer[bufferSize] = {0xFF};
 
 // UPLOAD Settings
-  String host = "api.slosarek.eu";
-  String url = "/camera-uploads/upload.php?f=2018";
+  String upload_host = "api.slosarek.eu";
+  String upload_script = "/camera-uploads/upload.php?f=Tests";
   String start_request = "";
   String boundary = "_cam_";
   String end_request = "\n--"+boundary+"--\n";
-  
+ 
 uint8_t temp = 0, temp_last = 0;
 int i = 0;
 bool is_header = false;
@@ -73,22 +76,69 @@ ESP8266WebServer server(80);
 
 ArduCAM myCAM(OV2640, CS);
 
+//Classes to set custom params
+class IntParameter : public WiFiManagerParameter {
+public:
+    IntParameter(const char *id, const char *placeholder, long value, const uint8_t length = 10)
+        : WiFiManagerParameter("") {
+        init(id, placeholder, String(value).c_str(), length, "", WFM_LABEL_BEFORE);
+    }
+
+    long getValue() {
+        return String(WiFiManagerParameter::getValue()).toInt();
+    }
+};
+class StringParameter : public WiFiManagerParameter {
+public:
+    StringParameter(const char *id, const char *placeholder, String value, const uint8_t length = 150)
+        : WiFiManagerParameter("") {
+        init(id, placeholder, String(value).c_str(), length, "", WFM_LABEL_BEFORE);
+    }
+
+    String getValue() {
+        return String(WiFiManagerParameter::getValue());
+    }
+};
+
+struct Settings {
+    int timelapse;
+    String upload_host;
+    String upload_path;
+    String slave_cam_ip;
+} settings;
 
 void setup() {
-    // set the CS as an output:
+   // set the CS as an output:
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
-  
+
+    EEPROM.begin( 512 );
+    EEPROM.get(0, settings);
+    Serial.println("Settings loaded");
+    
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
   wm.setMenu(menu);
 
+  // Add custom parameters to WiFi Manager: upload_host  upload_script  timelapse_seconds  slave_camera_ip
+  // id/name placeholder/prompt default length
+
+  IntParameter param_timelapse( "timelapse", "Timelapse in ms",  settings.timelapse);
+  StringParameter param_slave_cam_ip("slave_cam_ip", "Slave cam ip", settings.slave_cam_ip);
+
+  // Add the defined parameters to wm
+  wm.addParameter(&param_timelapse);
+  wm.addParameter(&param_slave_cam_ip);
+  
   wm.setMinimumSignalQuality(40);
   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
   wm.autoConnect(configModeAP);
-
+  
+  timelapse = param_timelapse.getValue() * 1000UL;
+  slave_cam_ip = param_slave_cam_ip.getValue();
+  
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
  buttonShutter.setDoubleClickHandler(shutterDoubleClick);
@@ -102,7 +152,7 @@ void setup() {
   Wire.begin();
 #endif
   Serial.begin(115200);
-  Serial.println(F("ArduCAM Start!"));
+  Serial.println("ArduCAM Start!");
   
   // initialize SPI:
   SPI.begin();
@@ -156,7 +206,7 @@ void setup() {
   server.begin();
   Serial.println(F("Server started"));
 
-  lastTimeLapse = millis() + timeLapse;  // Initialize timeLapse
+  lastTimeLapse = millis() + timelapse;  // Initialize timelapse
   }
 
 void start_capture() {
@@ -183,7 +233,7 @@ String camCapture(ArduCAM myCAM) {
   myCAM.set_fifo_burst();
   SPI.transfer(0xFF);
 
-  if (client.connect(host, 80)) { 
+  if (client.connect(upload_host, 80)) { 
     while(client.available()) {
       String line = client.readStringUntil('\r');
     }  // Empty wifi receive bufffer
@@ -201,11 +251,11 @@ String camCapture(ArduCAM myCAM) {
     full_length = start_request.length() + len + end_request.length();
     Serial.print(full_length);
 
-    Serial.println("POST "+url+" HTTP/1.1");
-    Serial.println("Host: "+host);
+    Serial.println("POST "+upload_script+" HTTP/1.1");
+    Serial.println("Host: "+upload_host);
     Serial.println("Content-Length: "+String(full_length)); Serial.println();
-    client.println("POST "+url+" HTTP/1.1");
-    client.println("Host: "+host);
+    client.println("POST "+upload_script+" HTTP/1.1");
+    client.println("Host: "+upload_host);
     client.println("Content-Type: multipart/form-data; boundary="+boundary);
     client.print("Content-Length: "); client.println(full_length);
       client.println();
@@ -255,7 +305,7 @@ String camCapture(ArduCAM myCAM) {
   client.stop();
   return response;
   } else {
-    Serial.println("ERROR: Could not connect to "+host);
+    Serial.println("ERROR: Could not connect to "+upload_host);
     return "ERROR Could not connect to host";
   }
 }
@@ -398,7 +448,7 @@ void loop() {
   server.handleClient();
   buttonShutter.loop();
   if (captureTimeLapse && millis() >= lastTimeLapse) {
-    lastTimeLapse += timeLapse;
+    lastTimeLapse += timelapse;
     serverCapture();
     Serial.println("Timelapse captured");
   }
@@ -436,5 +486,5 @@ void shutterLongClick(Button2& btn) {
     digitalWrite(ledStatus, HIGH);
     Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
-    lastTimeLapse = millis() + timeLapse;
+    lastTimeLapse = millis() + timelapse;
 }
