@@ -39,6 +39,8 @@ boolean isStreaming = false;
 static unsigned long lastTimeLapse;
 
 // Settings that are saved in EPROM
+String upload_host;
+String upload_path;
 String slave_cam_ip;
 unsigned long timelapse; // Now set in WiFi Manager
 
@@ -62,8 +64,6 @@ static const size_t bufferSize = 4096;
 static uint8_t buffer[bufferSize] = {0xFF};
 
 // UPLOAD Settings
-  String upload_host = "api.slosarek.eu";
-  String upload_script = "/camera-uploads/upload.php?f=Tests";
   String start_request = "";
   String boundary = "_cam_";
   String end_request = "\n--"+boundary+"--\n";
@@ -101,13 +101,14 @@ public:
 };
 
 struct Settings {
-    int timelapse;
-    String upload_host;
-    String upload_path;
-    String slave_cam_ip;
+    int timelapse= 60;
+    String upload_host = "api.slosarek.eu";
+    String upload_path = "/camera-uploads/upload.php?f=Tests";
+    String slave_cam_ip = "";
 } settings;
 
 void setup() {
+  Serial.begin(115200);
    // set the CS as an output:
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
@@ -122,27 +123,40 @@ void setup() {
   // Add custom parameters to WiFi Manager: upload_host  upload_script  timelapse_seconds  slave_camera_ip
   // id/name placeholder/prompt default length
 
-  IntParameter param_timelapse( "timelapse", "Timelapse in ms",  settings.timelapse);
-  StringParameter param_slave_cam_ip("slave_cam_ip", "Slave cam ip", settings.slave_cam_ip);
-
+  IntParameter param_timelapse( "timelapse",         "Timelapse in secs",  settings.timelapse);
+  StringParameter param_slave_cam_ip("slave_cam_ip", "Slave cam ip/ping", settings.slave_cam_ip);
+  StringParameter param_upload_host("upload_host",   "API host for upload", settings.upload_host);
+  StringParameter param_upload_path("upload_path",   "Path to API endoint", settings.upload_path);
   // Add the defined parameters to wm
   wm.addParameter(&param_timelapse);
   wm.addParameter(&param_slave_cam_ip);
-  
+  wm.addParameter(&param_upload_host);
+  wm.addParameter(&param_upload_path);
   wm.setMinimumSignalQuality(40);
   // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
+            EEPROM.put(0, settings);
+        if (EEPROM.commit()) {
+            Serial.println("Settings saved");
+        } else {
+            Serial.println("EEPROM error");
+        }
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
-  wm.autoConnect(configModeAP);
   
   timelapse = param_timelapse.getValue() * 1000UL;
   slave_cam_ip = param_slave_cam_ip.getValue();
+  upload_host = param_upload_host.getValue();
+  upload_path = param_upload_path.getValue();
+  settings.timelapse = param_timelapse.getValue();
+  settings.slave_cam_ip = slave_cam_ip;
+  settings.upload_host = upload_host;
+  settings.upload_path = upload_path;
+  wm.autoConnect(configModeAP);
   
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
- buttonShutter.setDoubleClickHandler(shutterDoubleClick);
- buttonShutter.setLongClickHandler(shutterLongClick);
+ buttonShutter.setLongClickHandler(shutterLongClick); // Starts timelapse
   
   uint8_t vid, pid;
   uint8_t temp;
@@ -151,7 +165,7 @@ void setup() {
 #else
   Wire.begin();
 #endif
-  Serial.begin(115200);
+
   Serial.println("ArduCAM Start!");
   
   // initialize SPI:
@@ -251,10 +265,10 @@ String camCapture(ArduCAM myCAM) {
     full_length = start_request.length() + len + end_request.length();
     Serial.print(full_length);
 
-    Serial.println("POST "+upload_script+" HTTP/1.1");
+    Serial.println("POST "+upload_path+" HTTP/1.1");
     Serial.println("Host: "+upload_host);
     Serial.println("Content-Length: "+String(full_length)); Serial.println();
-    client.println("POST "+upload_script+" HTTP/1.1");
+    client.println("POST "+upload_path+" HTTP/1.1");
     client.println("Host: "+upload_host);
     client.println("Content-Type: multipart/form-data; boundary="+boundary);
     client.print("Content-Length: "); client.println(full_length);
@@ -464,6 +478,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 
 void saveConfigCallback() {
   digitalWrite(ledStatus, HIGH);
+
   message = "WiFi configuration saved. ";
   message += "On next restart will connect automatically. Display is online: ";
   message += "http://cam.local or http://"+WiFi.localIP().toString();
@@ -471,11 +486,6 @@ void saveConfigCallback() {
   Serial.println(WiFi.localIP().toString());
 }
 
-void shutterDoubleClick(Button2& btn) {
-    digitalWrite(ledStatus, LOW);
-    Serial.println("Disable timelapse");
-    captureTimeLapse = false;
-}
 void shutterReleased(Button2& btn) {
     digitalWrite(ledStatus, LOW);
     Serial.println("Released");
