@@ -41,7 +41,7 @@ static unsigned long lastTimeLapse;
 // Settings that are saved in EPROM
 int timelapse_sec = 60;
 String upload_host = "api.slosarek.eu";
-String upload_path = "/camera-uploads/upload.php?f=Tests";
+String upload_path = "/camera-uploads/upload.php?f=2018";
 String slave_cam_ip = "192.168.43.159";
 unsigned long timelapse; // Now set in WiFi Manager
 
@@ -109,11 +109,11 @@ void setup() {
   pinMode(ledStatus, OUTPUT);
 
     EEPROM.begin( 512 );
-    EEPROM.get(0, timelapse_sec);
-    EEPROM.get(100, slave_cam_ip);
-    EEPROM.get(200, upload_host);
-    EEPROM.get(300, upload_path);
-    Serial.println("Settings loaded");
+    //EEPROM.get(0, timelapse_sec);
+   // EEPROM.get(100, slave_cam_ip);
+   // EEPROM.get(200, upload_host);
+   // EEPROM.get(300, upload_path);
+   // Serial.println("Settings loaded");
     
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
   wm.setMenu(menu);
@@ -141,9 +141,7 @@ void setup() {
   upload_host = param_upload_host.getValue();
   upload_path = param_upload_path.getValue();
   timelapse_sec = param_timelapse.getValue();
-  slave_cam_ip = slave_cam_ip;
-  upload_host = upload_host;
-  upload_path = upload_path;
+Serial.println("slave_cam_ip "+slave_cam_ip);
   wm.autoConnect(configModeAP);
   
 // Button events
