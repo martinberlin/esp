@@ -44,11 +44,13 @@ String upload_path;
 String slave_cam_ip;
 unsigned long timelapse; // Now set in WiFi Manager
 
+//flag for saving data
+bool shouldSaveConfig = false;
+
 // Outputs
 Button2 buttonShutter = Button2(D3);
 const int ledStatus = D4;
 
-WiFiManager wm;
 WiFiClient client;
 // Default config mode Access point
 const char* configModeAP = "CAM-autoconnect";
@@ -101,24 +103,32 @@ public:
 };
 
 struct Settings {
-    int timelapse= 60;
+    int timelapse = 60;
     String upload_host = "api.slosarek.eu";
     String upload_path = "/camera-uploads/upload.php?f=Tests";
     String slave_cam_ip = "";
 } settings;
+
+
+void saveConfigCallback() {
+  digitalWrite(ledStatus, HIGH);
+  shouldSaveConfig = true;
+  Serial.println("shouldSaveConfig SAVE");
+  Serial.println(WiFi.localIP().toString());
+}
 
 void setup() {
   Serial.begin(115200);
    // set the CS as an output:
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
-
-// Not yet discovered how to save this in EEPROM
-    EEPROM.begin( 512 );
-    //EEPROM.get(0, settings);
-    Serial.println("Settings loaded");
-    
+  loadStruct(&settings, sizeof(settings));
+  
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
+
+  WiFiManager wm;
+  wm.setSaveConfigCallback(saveConfigCallback);
+  
   wm.setMenu(menu);
 
   // Add custom parameters to WiFi Manager: upload_host  upload_script  timelapse_seconds  slave_camera_ip
@@ -135,7 +145,6 @@ void setup() {
   wm.addParameter(&param_upload_path);
   wm.setMinimumSignalQuality(40);
   wm.setAPCallback(configModeCallback);
-  wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
   
   timelapse = param_timelapse.getValue() * 1000UL;
@@ -143,10 +152,16 @@ void setup() {
   upload_host = param_upload_host.getValue();
   upload_path = param_upload_path.getValue();
   settings.timelapse = param_timelapse.getValue();
+  
   settings.slave_cam_ip = slave_cam_ip;
   settings.upload_host = upload_host;
   settings.upload_path = upload_path;
   wm.autoConnect(configModeAP);
+
+// SAVE Config to EEPROM
+  if (shouldSaveConfig) {
+     storeStruct(&settings, sizeof(settings));
+  }
   
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
@@ -470,25 +485,6 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println(myWiFiManager->getConfigPortalSSID());
 }
 
-void saveConfigCallback() {
-  digitalWrite(ledStatus, HIGH);
-
-  message = "WiFi configuration saved. ";
-  message += "On next restart will connect automatically. Display is online: ";
-  message += "http://cam.local or http://"+WiFi.localIP().toString();
-  Serial.println(message);
-  Serial.println(WiFi.localIP().toString());
-
-    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
-// Does not fucking work like this
-//            EEPROM.put(0, settings);
-//        if (EEPROM.commit()) {
-//            Serial.println("Settings saved");
-//        } else {
-//            Serial.println("EEPROM error");
-//        }
-}
-
 void shutterReleased(Button2& btn) {
     digitalWrite(ledStatus, LOW);
     Serial.println("Released");
@@ -500,4 +496,26 @@ void shutterLongClick(Button2& btn) {
     Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
     lastTimeLapse = millis() + timelapse;
+}
+
+// Found this magic here: https://github.com/esp8266/Arduino/issues/1539
+void storeStruct(void *data_source, size_t size)
+{
+  EEPROM.begin(size * 2);
+  for(size_t i = 0; i < size; i++)
+  {
+    char data = ((char *)data_source)[i];
+    EEPROM.write(i, data);
+  }
+  EEPROM.commit();
+}
+
+void loadStruct(void *data_dest, size_t size)
+{
+    EEPROM.begin(size * 2);
+    for(size_t i = 0; i < size; i++)
+    {
+        char data = EEPROM.read(i);
+        ((char *)data_dest)[i] = data;
+    }
 }
