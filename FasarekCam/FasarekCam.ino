@@ -113,8 +113,9 @@ void setup() {
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
 
+// Not yet discovered how to save this in EEPROM
     EEPROM.begin( 512 );
-    EEPROM.get(0, settings);
+    //EEPROM.get(0, settings);
     Serial.println("Settings loaded");
     
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
@@ -133,13 +134,6 @@ void setup() {
   wm.addParameter(&param_upload_host);
   wm.addParameter(&param_upload_path);
   wm.setMinimumSignalQuality(40);
-  // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
-            EEPROM.put(0, settings);
-        if (EEPROM.commit()) {
-            Serial.println("Settings saved");
-        } else {
-            Serial.println("EEPROM error");
-        }
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setDebugOutput(true); 
@@ -484,6 +478,15 @@ void saveConfigCallback() {
   message += "http://cam.local or http://"+WiFi.localIP().toString();
   Serial.println(message);
   Serial.println(WiFi.localIP().toString());
+
+    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
+// Does not fucking work like this
+//            EEPROM.put(0, settings);
+//        if (EEPROM.commit()) {
+//            Serial.println("Settings saved");
+//        } else {
+//            Serial.println("EEPROM error");
+//        }
 }
 
 void shutterReleased(Button2& btn) {
