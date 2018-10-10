@@ -119,7 +119,9 @@ void saveConfigCallback() {
 
 void setup() {
   Serial.begin(115200);
-   // set the CS as an output:
+  // Save test:
+  //storeStruct(&settings, sizeof(settings));
+  // set the CS as an output:
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
   loadStruct(&settings, sizeof(settings));
@@ -152,17 +154,23 @@ void setup() {
   upload_host = param_upload_host.getValue();
   upload_path = param_upload_path.getValue();
   settings.timelapse = param_timelapse.getValue();
+  if (settings.slave_cam_ip != param_slave_cam_ip.getValue() ||
+      settings.timelapse    != param_timelapse.getValue()) {
+    shouldSaveConfig = true;
+  }
+
   
   settings.slave_cam_ip = slave_cam_ip;
   settings.upload_host = upload_host;
   settings.upload_path = upload_path;
-  wm.autoConnect(configModeAP);
 
 // SAVE Config to EEPROM
   if (shouldSaveConfig) {
+     Serial.println("SAVE THE CONFIGURATION");
      storeStruct(&settings, sizeof(settings));
   }
-  
+
+  wm.autoConnect(configModeAP);
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
  buttonShutter.setLongClickHandler(shutterLongClick); // Starts timelapse
