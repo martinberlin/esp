@@ -155,10 +155,10 @@ void setup() {
   settings.upload_path = upload_path;
 
 // SAVE Config to EEPROM
-//  if (shouldSaveConfig) {
-//     Serial.println("SAVE THE CONFIGURATION");
-//     storeStruct(&settings, sizeof(settings));
-//  }
+  if (shouldSaveConfig) {
+     Serial.println("SAVE THE CONFIGURATION in setup()");
+     storeStruct(&settings, sizeof(settings));
+  }
 
   wm.autoConnect(configModeAP);
 // Button events
@@ -486,7 +486,7 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 void saveConfigCallback() {
   shouldSaveConfig = true;
   Serial.println("saveConfigCallback fired: WM Saving settings");
-  storeStruct(&settings, sizeof(settings));
+  //storeStruct(&settings, sizeof(settings));
   Serial.println(WiFi.localIP().toString());
 }
 
