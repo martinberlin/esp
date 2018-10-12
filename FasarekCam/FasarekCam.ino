@@ -103,36 +103,29 @@ public:
 };
 
 struct Settings {
-    int timelapse = 60;
+    int timelapse = 30;
     String upload_host = "api.slosarek.eu";
-    String upload_path = "/camera-uploads/upload.php?f=Tests";
+    String upload_path = "/camera-uploads/upload.php?f=2018";
     String slave_cam_ip = "";
 } settings;
 
 
-void saveConfigCallback() {
-  digitalWrite(ledStatus, HIGH);
-  shouldSaveConfig = true;
-  Serial.println("shouldSaveConfig SAVE");
-  Serial.println(WiFi.localIP().toString());
-}
+
 
 void setup() {
   Serial.begin(115200);
-  // Save test:
-  //storeStruct(&settings, sizeof(settings));
+  // Load settings save happens in saveConfigCallback
+  loadStruct(&settings, sizeof(settings));
   // set the CS as an output:
   pinMode(CS, OUTPUT);
   pinMode(ledStatus, OUTPUT);
-  loadStruct(&settings, sizeof(settings));
+  
   
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
 
   WiFiManager wm;
-  wm.setSaveConfigCallback(saveConfigCallback);
-  
   wm.setMenu(menu);
-
+  
   // Add custom parameters to WiFi Manager: upload_host  upload_script  timelapse_seconds  slave_camera_ip
   // id/name placeholder/prompt default length
 
@@ -146,6 +139,9 @@ void setup() {
   wm.addParameter(&param_upload_host);
   wm.addParameter(&param_upload_path);
   wm.setMinimumSignalQuality(40);
+  // Callbacks configuration
+  wm.setBreakAfterConfig(true); // Without this saveConfigCallback does not get fired
+  wm.setSaveConfigCallback(saveConfigCallback);
   wm.setAPCallback(configModeCallback);
   wm.setDebugOutput(true); 
   
@@ -153,22 +149,16 @@ void setup() {
   slave_cam_ip = param_slave_cam_ip.getValue();
   upload_host = param_upload_host.getValue();
   upload_path = param_upload_path.getValue();
-  settings.timelapse = param_timelapse.getValue();
-  if (settings.slave_cam_ip != param_slave_cam_ip.getValue() ||
-      settings.timelapse    != param_timelapse.getValue()) {
-    shouldSaveConfig = true;
-  }
-
-  
+  settings.timelapse = param_timelapse.getValue();  
   settings.slave_cam_ip = slave_cam_ip;
   settings.upload_host = upload_host;
   settings.upload_path = upload_path;
 
 // SAVE Config to EEPROM
-  if (shouldSaveConfig) {
-     Serial.println("SAVE THE CONFIGURATION");
-     storeStruct(&settings, sizeof(settings));
-  }
+//  if (shouldSaveConfig) {
+//     Serial.println("SAVE THE CONFIGURATION");
+//     storeStruct(&settings, sizeof(settings));
+//  }
 
   wm.autoConnect(configModeAP);
 // Button events
@@ -492,6 +482,14 @@ void configModeCallback (WiFiManager *myWiFiManager) {
   Serial.println(message);
   Serial.println(myWiFiManager->getConfigPortalSSID());
 }
+
+void saveConfigCallback() {
+  shouldSaveConfig = true;
+  Serial.println("saveConfigCallback fired: WM Saving settings");
+  storeStruct(&settings, sizeof(settings));
+  Serial.println(WiFi.localIP().toString());
+}
+
 
 void shutterReleased(Button2& btn) {
     digitalWrite(ledStatus, LOW);
