@@ -7,7 +7,7 @@
 
 // This program requires the ArduCAM V4.0.0 (or later) library and ArduCAM ESP8266 2MP/5MP camera
 #include <FS.h> //this needs to be first, or it all crashes and burns...
-#include <EEPROM.h>
+
 #include <WiFiManager.h>
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -118,7 +118,6 @@ Serial.println("mounted file system");
   }
 //end read
   
-  
   std::vector<const char *> menu = {"wifi","wifinoscan","info","sep","restart"};
 
 
@@ -129,18 +128,13 @@ Serial.println("mounted file system");
   WiFiManagerParameter param_slave_cam_ip("slave_cam_ip", "Slave cam ip/ping", slave_cam_ip,16);
   WiFiManagerParameter param_upload_host("upload_host", "API host for upload", upload_host,120);
   WiFiManagerParameter param_upload_path("upload_path", "Path to API endoint", upload_path,240);
-
-  WiFiManager wm;
-  wm.setMenu(menu);
   
-  // Add custom parameters to WiFi Manager: upload_host  upload_script  timelapse_seconds  slave_camera_ip
-  // id/name placeholder/prompt default length
-
-
-  //IntParameter param_timelapse( "timelapse",         "Timelapse in secs",  timelapse);
-  //StringParameter param_slave_cam_ip("slave_cam_ip", "Slave cam ip/ping", slave_cam_ip,16);
-  //StringParameter param_upload_host("upload_host",   "API host for upload", upload_host,120);
-  //StringParameter param_upload_path("upload_path",   "Path to API endoint", upload_path,240);
+  WiFiManager wm;
+  if (digitalRead(D3) == LOW) {
+    // Reset saved settings if started with shutter button down
+    wm.resetSettings();
+  }
+  wm.setMenu(menu);
   // Add the defined parameters to wm
   wm.addParameter(&param_timelapse);
   wm.addParameter(&param_slave_cam_ip);
@@ -151,18 +145,29 @@ Serial.println("mounted file system");
   wm.setBreakAfterConfig(true); // Without this saveConfigCallback does not get fired
   wm.setSaveConfigCallback(saveConfigCallback);
   wm.setAPCallback(configModeCallback);
-  wm.setDebugOutput(true); 
- 
+  wm.setDebugOutput(false); 
+  wm.autoConnect(configModeAP);
 
-// SAVE Config to EEPROM
+  //read updated parameters
+  //timelapse = 60; // TODO: Pending convert to INT param_timelapse.getValue()
+  strcpy(timelapse, param_timelapse.getValue());
+  strcpy(slave_cam_ip, param_slave_cam_ip.getValue());
+  strcpy(upload_host, param_upload_host.getValue());
+  strcpy(upload_path, param_upload_path.getValue());
   if (shouldSaveConfig) {
-    Serial.println("Saving config in SPIFFS");
+    Serial.println("CONNECTED and shouldSaveConfig == TRUE");
+    Serial.println(WiFi.localIP().toString());
+     Serial.println("Saving config in SPIFFS");
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
-    json["timelapse"] = timelapse;
+    json["timelapse"] = 44;
     json["slave_cam_ip"] = slave_cam_ip;
     json["upload_host"] = upload_host;
     json["upload_path"] = upload_path;
+
+    Serial.println("timelapse:"+String(timelapse));Serial.println("slave_cam_ip:"+String(slave_cam_ip));
+    Serial.println("upload_host:"+String(upload_host));
+    Serial.println("upload_path:"+String(upload_path));
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
       Serial.println("failed to open config file for writing");
@@ -171,18 +176,10 @@ Serial.println("mounted file system");
     json.printTo(Serial);
     json.printTo(configFile);
     configFile.close();
-//end save
   }
 
-  wm.autoConnect(configModeAP);
-
-//read updated parameters
-  //timelapse = 60; // TODO: Pending convert to INT param_timelapse.getValue()
-  strcpy(slave_cam_ip, param_slave_cam_ip.getValue());
-  strcpy(upload_host, param_upload_host.getValue());
-  strcpy(upload_path, param_upload_path.getValue());
   // Convert timelapse to milliseconds
-  timelapseMillis = 60 * 1000UL;
+  timelapseMillis = int(timelapse) * 1000UL;
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
  buttonShutter.setLongClickHandler(shutterLongClick); // Starts timelapse
@@ -503,12 +500,11 @@ void configModeCallback (WiFiManager *myWiFiManager) {
 }
 
 void saveConfigCallback() {
+  
   shouldSaveConfig = true;
   Serial.println("saveConfigCallback fired: WM Saving settings");
-  //storeStruct(&settings, sizeof(settings));
-  Serial.println(WiFi.localIP().toString());
+ 
 }
-
 
 void shutterReleased(Button2& btn) {
     digitalWrite(ledStatus, LOW);
@@ -521,26 +517,4 @@ void shutterLongClick(Button2& btn) {
     Serial.println("long click: Enable timelapse");
     captureTimeLapse = true;
     lastTimeLapse = millis() + timelapseMillis;
-}
-
-// Found this magic here: https://github.com/esp8266/Arduino/issues/1539
-void storeStruct(void *data_source, size_t size)
-{
-  EEPROM.begin(size * 2);
-  for(size_t i = 0; i < size; i++)
-  {
-    char data = ((char *)data_source)[i];
-    EEPROM.write(i, data);
-  }
-  EEPROM.commit();
-}
-
-void loadStruct(void *data_dest, size_t size)
-{
-    EEPROM.begin(size * 2);
-    for(size_t i = 0; i < size; i++)
-    {
-        char data = EEPROM.read(i);
-        ((char *)data_dest)[i] = data;
-    }
 }
