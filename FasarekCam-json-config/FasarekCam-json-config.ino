@@ -130,6 +130,7 @@ Serial.println("mounted file system");
   WiFiManagerParameter param_upload_path("upload_path", "Path to API endoint", upload_path,240);
   
   WiFiManager wm;
+  //wm.resetSettings();
   if (digitalRead(D3) == LOW) {
     // Reset saved settings if started with shutter button down
     wm.resetSettings();
@@ -154,13 +155,13 @@ Serial.println("mounted file system");
   strcpy(slave_cam_ip, param_slave_cam_ip.getValue());
   strcpy(upload_host, param_upload_host.getValue());
   strcpy(upload_path, param_upload_path.getValue());
+  
   if (shouldSaveConfig) {
     Serial.println("CONNECTED and shouldSaveConfig == TRUE");
-    Serial.println(WiFi.localIP().toString());
-     Serial.println("Saving config in SPIFFS");
+   
     DynamicJsonBuffer jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
-    json["timelapse"] = 44;
+    json["timelapse"] = timelapse;
     json["slave_cam_ip"] = slave_cam_ip;
     json["upload_host"] = upload_host;
     json["upload_path"] = upload_path;
