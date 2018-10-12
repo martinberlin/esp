@@ -180,14 +180,13 @@ Serial.println("mounted file system");
   }
 
   // Convert timelapse(char) to timelapseInt and then to  milliseconds
-size_t lenT = strlen(timelapse);
-int timelapseInt = 0 ;
-for (int i=0; i<lenT; i++) {
+  int timelapseInt = 0 ;
+  for (int i=0; i<strlen(timelapse); i++) {
     timelapseInt += timelapse[i];
-}
-  timelapseMillis = timelapseInt * 1000;
-  Serial.println("timelapse: "+String(timelapseInt));
-   Serial.println("timelapseMillis -----> "+String(timelapseMillis));
+  }
+  timelapseMillis = (timelapseInt/2) * 1000;
+  Serial.println("");
+  Serial.println("timelapseMillis: "+String(timelapseMillis));
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
  buttonShutter.setLongClickHandler(shutterLongClick); // Starts timelapse
