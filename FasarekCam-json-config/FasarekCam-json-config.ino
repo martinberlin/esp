@@ -130,7 +130,6 @@ Serial.println("mounted file system");
   WiFiManagerParameter param_upload_path("upload_path", "Path to API endoint", upload_path,240);
   
   WiFiManager wm;
-  //wm.resetSettings();
   if (digitalRead(D3) == LOW) {
     // Reset saved settings if started with shutter button down
     wm.resetSettings();
@@ -180,12 +179,10 @@ Serial.println("mounted file system");
   }
 
   // Convert timelapse(char) to timelapseInt and then to  milliseconds
-  int timelapseInt = 0 ;
-  for (int i=0; i<strlen(timelapse); i++) {
-    timelapseInt += timelapse[i];
-  }
-  timelapseMillis = (timelapseInt/2) * 1000;
+  int timelapseInt = atoi(timelapse);
+  timelapseMillis = (timelapseInt) * 1000;
   Serial.println("");
+  Serial.println("source:"+String(timelapse));
   Serial.println("timelapseMillis: "+String(timelapseMillis));
 // Button events
  buttonShutter.setReleasedHandler(shutterReleased); // Takes picture
