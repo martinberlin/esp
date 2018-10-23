@@ -13,8 +13,8 @@
 #include <GxIO/GxIO_SPI/GxIO_SPI.cpp>
 #include <GxIO/GxIO.cpp>
 // FONT used for title / message
-#include <Fonts/quicksand_bold_webfont14pt8b.h>
-#include <Fonts/quicksand_bold_webfont18pt8b.h>
+#include <Fonts/FreeMonoBold12pt7b.h>
+#include <Fonts/FreeMonoBold24pt7b.h>
 
 //Converting fonts with ümlauts: ./fontconvert *.ttf 18 32 252
 
@@ -55,7 +55,7 @@ void setup() {
 
   display.init();
   display.setRotation(2); // Rotates display N times clockwise
-  display.setFont(&quicksand_bold_webfont14pt8b);
+  display.setFont(&FreeMonoBold12pt7b);
   std::vector<const char *> menu = {"wifinoscan","info","sep","restart"};
   wm.setMenu(menu);
 
@@ -63,7 +63,7 @@ void setup() {
    // Callbacks that need to be defined before autoconnect to send a message to display (config and save config)
   wm.setAPCallback(configModeCallback);
   wm.setSaveConfigCallback(saveConfigCallback);
-  wm.setDebugOutput(false); 
+  wm.setDebugOutput(true); 
   wm.autoConnect(configModeAP);
   
   // Uncomment to force startConfig (And comment autoconnect)
@@ -195,12 +195,12 @@ void handleDisplayWrite() {
     for (byte i = 0; i < server.args(); i++) {
 
       if (server.argName(i) == "title") {
-        display.setFont(&quicksand_bold_webfont18pt8b);
+        display.setFont(&FreeMonoBold24pt7b);
         display.setCursor(10, 43);
         display.print(server.arg(i));
       }
       if (server.argName(i) == "text") {
-        display.setFont(&quicksand_bold_webfont14pt8b);
+        display.setFont(&FreeMonoBold12pt7b);
         display.setCursor(10, 75);
         display.print(server.arg(i));
       }
@@ -241,12 +241,13 @@ void handleWebToDisplay() {
   request += "Connection: close\r\n";
   request += "\r\n";
   Serial.println(request);
-
-  if (! client.connect(host, 80)) {
-    Serial.println("connection failed");
-    client.stop();
-    return;
-  }
+// Falta ponerle un timeout
+//  if (! client.connect(host, 80)) {
+//    Serial.println("connection failed");
+//    client.stop();
+//    return;
+//  }
+  client.connect(host, 80);
   client.print(request); //send the http request to the server
   client.flush();
   display.fillScreen(GxEPD_WHITE);
