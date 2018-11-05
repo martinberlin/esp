@@ -110,9 +110,8 @@ static const unsigned char image[] U8X8_PROGMEM  = {
   0xFF, 0xFF, 0x67, 0x00, 0xD8, 0x1F, 0xFF, 0xFF, 0x7F, 0x10, 0xFE, 0xFF, 
   0xFF, 0xFF, 0xFF, 0xFF};
 
-const char* xtemp[1024]; // Temporary array to store JSON incoming Hex as string
-const unsigned char* xbm[1024] U8X8_PROGMEM;
-
+//const char* xbm[1024] U8X8_PROGMEM; // Temporary array to store JSON incoming Hex as string
+long unsigned int xbm[1024] U8X8_PROGMEM;
 
 void setup(void) {
   Serial.begin(115200);
@@ -138,12 +137,15 @@ void setup(void) {
 
           // using C++11 syntax (preferred):
           int c=0;
-
+          const char* tempx;
           for (auto value : arr) {
             // Assign the json array to xtemp
-            xtemp[c] = value.as<char*>(); 
+            tempx = value.as<char*>();
+            //Serial.print(strtol(tempx, NULL, 16)); // Outputs right number
+
+            xbm[c] = strtol(tempx, NULL, 16);
             
-            //Serial.println(String(c)+":"+value.as<char*>()); // Right value
+            //xbm[c] = (char*)strtol(tempx, NULL, 16); // Hangs everything in an endless loop
             c++;      
           }
           
@@ -160,16 +162,12 @@ void setup(void) {
   
   Serial.println("cross_block_bits size:");
   Serial.print(sizeof(image));
-  Serial.println(image[1]);
-
-  //xbm = xtemp;
-  
-  Serial.println("xbm:");
-  Serial.println(xtemp[1]);
+  Serial.print("image:");Serial.println(image[1]);
+  Serial.print("xbm:"); Serial.println(xbm[1]);
   
  // Should be xbm (coming from json)   xbm
  // u8g2.drawXBM( 0, 0, 128, 64, xtemp); // Does not work since requires  'const uint8_t* {aka const unsigned char*} 
-  u8g2.drawXBM( 0, 0, 128, 64, image);
+  u8g2.drawXBM( 0, 0, 128, 64, (const uint8_t *)xbm);
    
   u8g2.sendBuffer();
 }
