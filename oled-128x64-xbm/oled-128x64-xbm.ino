@@ -22,7 +22,7 @@
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C u8g2(U8G2_R0, /* clock=*/ 15, /* data=*/ 4, /* reset=*/ 16);
 
 
-static const unsigned char image[] U8X8_PROGMEM  = {
+static unsigned char image[] U8X8_PROGMEM  = {
   0x00, 0xC0, 0xFF, 0xFF, 0xFF, 0x0F, 0x00, 0x00, 0xFE, 0xFF, 0xFF, 0x17, 
   0xFC, 0xFF, 0xFF, 0xFF, 0x00, 0xE0, 0xFF, 0xFF, 0xFF, 0x3F, 0x00, 0x00, 
   0xFF, 0xFF, 0xFF, 0x14, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0xF0, 0xFF, 0xFF, 
@@ -111,7 +111,8 @@ static const unsigned char image[] U8X8_PROGMEM  = {
   0xFF, 0xFF, 0xFF, 0xFF};
 
 //const char* xbm[1024] U8X8_PROGMEM; // Temporary array to store JSON incoming Hex as string
-long unsigned int xbm[1024] U8X8_PROGMEM;
+long unsigned int xbm[1024];
+const char* xbmp[1024] U8X8_PROGMEM; 
 
 void setup(void) {
   Serial.begin(115200);
@@ -120,7 +121,7 @@ void setup(void) {
 
    if (SPIFFS.exists("/1.json")) {
     Serial.println("1.json found in SPIFFS");
-    File configFile = SPIFFS.open("/1.json", FILE_READ);
+    File configFile = SPIFFS.open("/2.json", FILE_READ);
       if (configFile) {
         size_t size = configFile.size();
         // Allocate a buffer to store contents of the file.
@@ -132,22 +133,28 @@ void setup(void) {
         //json.printTo(Serial);
         
         if (json.success()) {          
-          Serial.println("json.success");
+          Serial.println("json.success Size of xbm array");
+          
           JsonArray& arr = json["xbm"];
 
+        Serial.print(sizeof(arr));
           // using C++11 syntax (preferred):
           int c=0;
           const char* tempx;
           for (auto value : arr) {
             // Assign the json array to xtemp
             tempx = value.as<char*>();
-            //Serial.print(strtol(tempx, NULL, 16)); // Outputs right number
-
-            xbm[c] = strtol(tempx, NULL, 16);
+           
+            image[c] = strtol(tempx, NULL, 16);
             
-            //xbm[c] = (char*)strtol(tempx, NULL, 16); // Hangs everything in an endless loop
+              //Serial.print(strtol(tempx, NULL, 16)); // Outputs right number
+              if (c<10) {
+              Serial.print("i:");Serial.print(image[c]);Serial.print(" ");
+              }
             c++;      
           }
+          Serial.print("Final c count:"+String(c));
+          
           
         } else {
           Serial.println("ERR load config");
@@ -159,16 +166,16 @@ void setup(void) {
   u8g2.begin();
   u8g2.setDrawColor(0);
   u8g2.clearBuffer();
-  
-  Serial.println("cross_block_bits size:");
-  Serial.print(sizeof(image));
-  Serial.print("image:");Serial.println(image[1]);
-  Serial.print("xbm:"); Serial.println(xbm[1]);
+
+  Serial.print("image size:");
+  Serial.print(sizeof(image));Serial.println();  // Here is 4096 also 4 times bigger
+  Serial.print("xbmp size:");
+  Serial.print(sizeof(xbmp)); 
   
  // Should be xbm (coming from json)   xbm
- // u8g2.drawXBM( 0, 0, 128, 64, xtemp); // Does not work since requires  'const uint8_t* {aka const unsigned char*} 
-  u8g2.drawXBM( 0, 0, 128, 64, (const uint8_t *)xbm);
-   
+ 
+   //u8g2.drawXBM( 0, 0, 128, 64, (const uint8_t *)xbmp);
+   u8g2.drawXBM( 0, 0, 128, 64, (const uint8_t *)image);
   u8g2.sendBuffer();
 }
 
