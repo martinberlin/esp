@@ -1,6 +1,0 @@
-{
-  "timelapse":    30,
-  "upload_host" : "api.slosarek.eu",
-  "upload_path" : "/camera-uploads/upload.php?f=2018",
-  "slave_cam_ip": ""
-}
