@@ -10,6 +10,9 @@
 #include <DS3231.h>
 // is required when using with nRF52840 based board for Serial port implementation
 #include <Adafruit_TinyUSB.h>
+// Deepsleep library
+#include <Adafruit_SleepyDog.h>
+
 /* Vectors belong to a C++ library
    called STL so we need to import
    it first. They are use here only 
@@ -226,8 +229,11 @@ unsigned long ms;
   animation_close(random(5));
   delay(400);
 
-  obdWriteString(&obd, 0,10,3, "Temperatura:", FONT_8x8, 0, 1);
+  char t[20] = "Temperatura:";
+  obdWriteString(&obd, 0,10,3, t, FONT_8x8, 0, 1);
   obdWriteString(&obd, 0,30,17, temperature, FONT_16x32, 0, 1);
   delay(2000);
 
+  int sleepMS = Watchdog.sleep(12000);
+  Serial.printf("Go to sleep %d\n\n", sleepMS);
 } /* loop() */
