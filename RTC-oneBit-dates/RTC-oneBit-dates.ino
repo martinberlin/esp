@@ -8,7 +8,8 @@
 //
 #include <OneBitDisplay.h>
 #include <DS3231.h>
-
+// is required when using with nRF52840 based board for Serial port implementation
+#include <Adafruit_TinyUSB.h>
 /* Vectors belong to a C++ library
    called STL so we need to import
    it first. They are use here only 
@@ -79,6 +80,9 @@ void vector_add(const Day_alert & data) {
 }
 
 void setup() {
+  Serial.begin(115200);
+  while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  
   // Make a list of some important dates
   Day_alert dayv;
   dayv.day   = 12;
@@ -86,12 +90,16 @@ void setup() {
   dayv.note = "Feliz cumple JAVI!";
   vector_add(dayv);
   
+  dayv.day   = 4;
+  dayv.month = 4;
+  dayv.note = "Feliz cumple Paulina";
+  vector_add(dayv);
+  
   dayv.day   = 26;
   dayv.month = 6;
-  dayv.note = "Feliz cumple capurri gaturri";
+  dayv.note = "Go to work Bitch";
   vector_add(dayv);
-
-  printf("RTC started\n");
+  
 int rc;
 // The I2C SDA/SCL pins set to -1 means to use the default Wire library
 rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 800000L); // use standard I2C bus at 400Khz
@@ -108,6 +116,58 @@ bool century = false;
 bool h12Flag;
 bool pmFlag;
 
+void animation_close(uint8_t number) {
+  Serial.printf("anim %d\n", number);
+  uint16_t x = 0;
+  uint16_t y = 0;
+  obdFill(&obd, 0,1);
+  switch (number) {
+    case 0:
+          for (x=0; x<OLED_WIDTH-1; x+=2)
+        {
+          obdDrawLine(&obd, x, 0, x, OLED_HEIGHT-1, 1, 1);
+        }
+    case 1:
+      x = random(1000);
+      for (uint16_t i=0; i<3000+x; i++)
+      {
+        x = random(OLED_WIDTH);
+        y = random(OLED_HEIGHT);
+        obdSetPixel(&obd, x, y, 1, 1);
+      }
+      break;
+    case 2:
+      for (x=0; x<OLED_WIDTH-1; x+=2)
+        {
+          obdDrawLine(&obd, x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, 1, 1);
+        }
+        for (y=0; y<OLED_HEIGHT-1; y+=2)
+        {
+          obdDrawLine(&obd, OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1, 1);
+        }
+     break;
+         case 3:
+        for (y=0; y<OLED_HEIGHT-1; y++)
+        {
+          obdDrawLine(&obd, 0, y, OLED_WIDTH-1,y, 1, 1);
+          delay(10);
+        }
+     break;
+     default:
+        for (x=0; x<OLED_WIDTH-1; x+=2)
+        {
+          obdDrawLine(&obd, x, 0, x, OLED_HEIGHT-1, 1, 1);
+          delay(20);
+        }
+        for (y=0; y<OLED_HEIGHT-1; y+=3)
+        {
+          obdDrawLine(&obd, 0, y, OLED_WIDTH-1,y, 1, 1);
+          delay(15);
+        }
+  }
+  
+}
+
 void loop() {
   // Won't need this for 80 years.
   uint8_t month = myRTC.getMonth(century);
@@ -118,16 +178,33 @@ void loop() {
   char clockhh[8];
   char clockmm[3];
   char day_number[3];
+
+  char temperature[6];
   itoa(hour, clockhh, 10);
   itoa(minute, clockmm, 10);
   itoa(day, day_number, 10);
+
+  itoa(myRTC.getTemperature(), temperature, 10);
+  char celsius[4] = " C";
+  strncat(temperature, celsius, 2);
+
+  // Make HH & MM have an additional 0 if <10
+   char minute_buffer[3];
+   if (minute<10) {
+      strlcpy(minute_buffer,    "0", sizeof(minute_buffer));
+      strlcat(minute_buffer, clockmm, sizeof(minute_buffer));
+   } else {
+      strlcpy(minute_buffer, clockmm, sizeof(minute_buffer));
+   } 
+
+   
   // append ch to str
   char separator[2] = ":";
   strncat(clockhh, separator, 1);
-  strncat(clockhh, clockmm, 2);
+  strncat(clockhh, minute_buffer, 2);
 
   String day_message = vector_find(day, month);
-  printf("%s\n", day_message);
+  Serial.printf("%s\n", day_message);
   
 int i, x, y;
 char szTemp[32];
@@ -135,7 +212,7 @@ unsigned long ms;
 
   obdFill(&obd, 0x0, 1);
   
-  obdWriteString(&obd, 0,10,3, clockhh, FONT_16x32, 0, 1);
+  obdWriteString(&obd, 0,10,2, clockhh, FONT_16x32, 0, 1);
   //                      x  y  write "day month" 
   obdWriteString(&obd, 0, 10,30,(char *)day_number, FONT_8x8, 0, 1);
   obdWriteString(&obd, 0, 30,30,(char *)month_t[month], FONT_8x8, 0, 1);
@@ -146,53 +223,11 @@ unsigned long ms;
   delay(4000);
   
  // Pixel and line functions won't work without a back buffer
-  obdFill(&obd, 0, 1);
-  obdWriteString(&obd, 0,0,0,(char *)"Backbuffer Test", FONT_8x8,0,1);
-  obdWriteString(&obd, 0,0,1,(char *)"3000 Random dots", FONT_8x8,0,1);
-  delay(2000);
-  obdFill(&obd, 0,1);
-  ms = millis();
-  for (i=0; i<3000; i++)
-  {
-    x = random(OLED_WIDTH);
-    y = random(OLED_HEIGHT);
-    obdSetPixel(&obd, x, y, 1, 1);
-  }
-  
+  animation_close(random(5));
+  delay(400);
 
-  ms = millis() - ms;
-  sprintf(szTemp, "%dms", (int)ms);
-  obdWriteString(&obd, 0,0,0,szTemp, FONT_8x8, 0, 1);
-  obdWriteString(&obd, 0,0,1,(char *)"With backbuffer", FONT_6x8,0,1);
+  obdWriteString(&obd, 0,10,3, "Temperatura:", FONT_8x8, 0, 1);
+  obdWriteString(&obd, 0,30,17, temperature, FONT_16x32, 0, 1);
   delay(2000);
-  obdFill(&obd, 0, 1);
-  obdWriteString(&obd, 0,0,0,(char *)"Backbuffer Test", FONT_8x8,0,1);
-  obdWriteString(&obd, 0,0,1,(char *)"96 lines", FONT_8x8,0,1);
-  delay(2000);
-  ms = millis();
-  for (x=0; x<OLED_WIDTH-1; x+=2)
-  {
-    obdDrawLine(&obd, x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, 1, 1);
-  }
-  for (y=0; y<OLED_HEIGHT-1; y+=2)
-  {
-    obdDrawLine(&obd, OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1, 1);
-  }
-  ms = millis() - ms;
-  sprintf(szTemp, "%dms", (int)ms);
-  obdWriteString(&obd, 0,0,0,szTemp, FONT_8x8, 0, 1);
-  obdWriteString(&obd, 0,0,1,(char *)"Without backbuffer", FONT_6x8,0,1);
-  delay(2000);
-  obdFill(&obd, 0,1);
-  ms = millis();
-  for (x=0; x<OLED_WIDTH-1; x+=2)
-  {
-    obdDrawLine(&obd, x, 0, OLED_WIDTH-1-x, OLED_HEIGHT-1, 1, 0);
-  }
-  for (y=0; y<OLED_HEIGHT-1; y+=2)
-  {
-    obdDrawLine(&obd, OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1, 0);
-  }
-  obdDumpBuffer(&obd, ucBackBuffer);
 
 } /* loop() */
