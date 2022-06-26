@@ -35,7 +35,7 @@ DS3231 myRTC;
 // Weekdays and months translatables. [0] is empty since day & month start on 1.
 char weekday_t[][12] = { "", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
 
-char month_t[][12] = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+char month_t[][12] = { "", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
 
 #define USE_BACKBUFFER
@@ -67,8 +67,8 @@ String vector_find(uint8_t day, uint8_t month) {
   String ret = "";
 
   for(uint16_t i = 0; i < date_vector.size(); i++) {
-    if (date_vector[0].month == month && date_vector[0].day == day) {
-      return date_vector[0].note;
+    if (date_vector[i].month == month && date_vector[i].day == day) {
+      return date_vector[i].note;
     }
   }
   return ret;
@@ -79,15 +79,19 @@ void vector_add(const Day_alert & data) {
 }
 
 void setup() {
-  Serial.begin(115200);
   // Make a list of some important dates
-  Day_alert day1;
-  day1.day   = 27;
-  day1.month = 6;
-  day1.note = "Cumple Martin";
-  vector_add(day1);
+  Day_alert dayv;
+  dayv.day   = 12;
+  dayv.month = 7;
+  dayv.note = "Feliz cumple JAVI!";
+  vector_add(dayv);
+  
+  dayv.day   = 26;
+  dayv.month = 6;
+  dayv.note = "Feliz cumple capurri gaturri";
+  vector_add(dayv);
 
-  Serial.println("RTC started");
+  printf("RTC started\n");
 int rc;
 // The I2C SDA/SCL pins set to -1 means to use the default Wire library
 rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 800000L); // use standard I2C bus at 400Khz
@@ -95,6 +99,7 @@ rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, 
   {
     char *msgs[] = {(char *)"SSD1306 @ 0x3C", (char *)"SSD1306 @ 0x3D",(char *)"SH1106 @ 0x3C",(char *)"SH1106 @ 0x3D"};
     obdFill(&obd, 0, 1);
+    obdSetTextWrap(&obd, true);
     obdSetBackBuffer(&obd, ucBackBuffer);
   }
 } /* setup() */
@@ -122,7 +127,7 @@ void loop() {
   strncat(clockhh, clockmm, 2);
 
   String day_message = vector_find(day, month);
-  Serial.printf("%s\n", day_message);
+  printf("%s\n", day_message);
   
 int i, x, y;
 char szTemp[32];
@@ -136,7 +141,7 @@ unsigned long ms;
   obdWriteString(&obd, 0, 30,30,(char *)month_t[month], FONT_8x8, 0, 1);
   
   // Write special message if the day matches:
-  obdWriteString(&obd, 0, 10,40,(char *)day_message.c_str(), FONT_8x8, 0, 1);
+  obdWriteString(&obd, 0, 0,40,(char *)day_message.c_str(), FONT_8x8, 0, 1);
   
   delay(4000);
   
@@ -154,7 +159,7 @@ unsigned long ms;
     obdSetPixel(&obd, x, y, 1, 1);
   }
   
-  //obdDumpBuffer(&obd, NULL);
+
   ms = millis() - ms;
   sprintf(szTemp, "%dms", (int)ms);
   obdWriteString(&obd, 0,0,0,szTemp, FONT_8x8, 0, 1);
