@@ -83,26 +83,87 @@ void vector_add(const Day_alert & data) {
 }
 
 void setup() {
-  Serial.begin(115200);
-  while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  //Serial.begin(115200);
+  //while ( !Serial ) delay(10);   // for nrf52840 with native usb
   
   // Make a list of some important dates
   Day_alert dayv;
   dayv.day   = 12;
   dayv.month = 7;
-  dayv.note = "Feliz cumple JAVI!";
+  dayv.note = "Feliz cumple JAVI";
   vector_add(dayv);
-  
+    dayv.day   = 17;
+  dayv.month = 2;
+  dayv.note = "Feliz cumple MAMA";
+  vector_add(dayv);
   dayv.day   = 4;
   dayv.month = 4;
   dayv.note = "Feliz cumple Paulina";
   vector_add(dayv);
-  
   dayv.day   = 26;
   dayv.month = 6;
   dayv.note = "Go to work Bitch";
   vector_add(dayv);
-  
+  dayv.day   = 14;
+  dayv.month = 9;
+  dayv.note = "Feliz cumple Nel";
+  vector_add(dayv);
+  dayv.day   = 1;
+  dayv.month = 1;
+  dayv.note = "A recuperarse de la puta resaca";
+  vector_add(dayv);
+  dayv.day   = 18;
+  dayv.month = 7;
+  dayv.note = "Feliz cumple Carlos Fasani";
+  vector_add(dayv);
+    dayv.day   = 19;
+  dayv.month = 6;
+  dayv.note = "Feliz cumple Helena";
+  vector_add(dayv);
+  // - - - Fechas historicas
+    dayv.day   = 2;
+  dayv.month = 9;
+  dayv.note = "1945 - Fin de la 2da guerra mundial";
+  vector_add(dayv);
+  // - - - Stars, musicians, etc.
+    dayv.day   = 11;
+  dayv.month = 8;
+  dayv.note = "1959 - Nace Gustavo Ceratti";
+  vector_add(dayv);
+    dayv.day   = 23;
+  dayv.month = 10;
+  dayv.note = "1951 - Nace Charly Garcia";
+  vector_add(dayv);
+    dayv.day   = 17;
+  dayv.month = 5;
+  dayv.note = "1953 - Nace Luca Prodan en Roma";
+  vector_add(dayv);
+    dayv.day   = 10;
+  dayv.month = 3;
+  dayv.note = "1950 - Nace Norberto Napolitano (Pappo)";
+  vector_add(dayv);
+  // Internacionales
+    dayv.day   = 6;
+  dayv.month = 2;
+  dayv.note = "1945 - Nace Robert Nesta Marley en Jamaica";
+  vector_add(dayv);
+    dayv.day   = 9;
+  dayv.month = 10;
+  dayv.note = "1940 - Nace John Lennon en Liverpool";
+  vector_add(dayv);
+    dayv.day   = 6;
+  dayv.month = 1;
+  dayv.note = "1946 - Nace Syd Barret en Cambridge, fundador Pink Floyd";
+  vector_add(dayv);
+    dayv.day   = 6;
+  dayv.month = 9;
+  dayv.note = "1943 - Nace Roger Waters en UK, fundador Pink Floyd";
+  vector_add(dayv);
+      dayv.day   = 11;
+  dayv.month = 12;
+  dayv.note = "1890 - Nace Carlos Gardel en Touluse, el Zorzal";
+  vector_add(dayv);
+  // -- END of dates
 int rc;
 // The I2C SDA/SCL pins set to -1 means to use the default Wire library
 rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 800000L); // use standard I2C bus at 400Khz
@@ -202,16 +263,11 @@ void loop() {
 
    
   // append ch to str
-  char separator[2] = ":";
-  strncat(clockhh, separator, 1);
+  char separator[4] = " : ";
+  strncat(clockhh, separator, 3);
   strncat(clockhh, minute_buffer, 2);
 
   String day_message = vector_find(day, month);
-  Serial.printf("%s\n", day_message);
-  
-int i, x, y;
-char szTemp[32];
-unsigned long ms;
 
   obdFill(&obd, 0x0, 1);
   
@@ -222,8 +278,8 @@ unsigned long ms;
   
   // Write special message if the day matches:
   obdWriteString(&obd, 0, 0,40,(char *)day_message.c_str(), FONT_8x8, 0, 1);
-  
-  delay(4000);
+  // Wait this millis after showing main screen
+  delay(5000);
   
  // Pixel and line functions won't work without a back buffer
   animation_close(random(5));
@@ -234,6 +290,8 @@ unsigned long ms;
   obdWriteString(&obd, 0,30,17, temperature, FONT_16x32, 0, 1);
   delay(2000);
 
-  int sleepMS = Watchdog.sleep(12000);
+  
+  obdFill(&obd, 0x0, 1);
+  int sleepMS = Watchdog.sleep(60000);
   Serial.printf("Go to sleep %d\n\n", sleepMS);
 } /* loop() */
