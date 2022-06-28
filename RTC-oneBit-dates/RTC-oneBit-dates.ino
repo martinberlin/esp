@@ -29,7 +29,7 @@ struct Day_alert {
 // FIX for arduino: Otherwise there is a silly error
 namespace std {
   void __throw_length_error(char const*) {
-    Serial.println("vector __throw_length_error");
+    //Serial.println("vector __throw_length_error");
   }
 }
 vector<Day_alert> date_vector;
@@ -85,14 +85,34 @@ void vector_add(const Day_alert & data) {
 void setup() {
   //Serial.begin(115200);
   //while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  Day_alert dayv;
   
   // Make a list of some important dates
-  Day_alert dayv;
+  dayv.day   = 17;
+  dayv.month = 6;
+  dayv.note = "Feliz cumple Martin";
+  vector_add(dayv);
+  dayv.day   = 19;
+  dayv.month = 6;
+  dayv.note = "Feliz cumple Helena";
+  vector_add(dayv);
   dayv.day   = 12;
   dayv.month = 7;
   dayv.note = "Feliz cumple JAVI";
   vector_add(dayv);
-    dayv.day   = 17;
+  dayv.day   = 18;
+  dayv.month = 7;
+  dayv.note = "Feliz cumple Carlos Fasani";
+  vector_add(dayv);
+
+  
+  
+  dayv.day   = 18;
+  dayv.month = 1;
+  dayv.note = "Feliz cumple Anabelli";
+  vector_add(dayv);
+  
+  dayv.day   = 6;
   dayv.month = 2;
   dayv.note = "Feliz cumple MAMA";
   vector_add(dayv);
@@ -100,70 +120,88 @@ void setup() {
   dayv.month = 4;
   dayv.note = "Feliz cumple Paulina";
   vector_add(dayv);
-  dayv.day   = 26;
-  dayv.month = 6;
-  dayv.note = "Go to work Bitch";
-  vector_add(dayv);
+
   dayv.day   = 14;
   dayv.month = 9;
   dayv.note = "Feliz cumple Nel";
   vector_add(dayv);
-  dayv.day   = 1;
+
+  // - - - Fechas historicas
+    dayv.day   = 1;
   dayv.month = 1;
   dayv.note = "A recuperarse de la puta resaca";
   vector_add(dayv);
-  dayv.day   = 18;
-  dayv.month = 7;
-  dayv.note = "Feliz cumple Carlos Fasani";
-  vector_add(dayv);
-    dayv.day   = 19;
-  dayv.month = 6;
-  dayv.note = "Feliz cumple Helena";
-  vector_add(dayv);
-  // - - - Fechas historicas
     dayv.day   = 2;
   dayv.month = 9;
   dayv.note = "1945 - Fin de la 2da guerra mundial";
   vector_add(dayv);
-  // - - - Stars, musicians, etc.
+  
+  // - - - Stars, musicians, etc. 
     dayv.day   = 11;
   dayv.month = 8;
-  dayv.note = "1959 - Nace Gustavo Ceratti";
+  dayv.note = "1959-Nace Gustavo Ceratti";
   vector_add(dayv);
     dayv.day   = 23;
   dayv.month = 10;
-  dayv.note = "1951 - Nace Charly Garcia";
+  dayv.note = "1951-Nace Charly Garcia";
   vector_add(dayv);
-    dayv.day   = 17;
+    dayv.day = 17;
   dayv.month = 5;
-  dayv.note = "1953 - Nace Luca Prodan en Roma";
+  dayv.note = "1953-Nace Luca Prodan en Roma";
   vector_add(dayv);
-    dayv.day   = 10;
-  dayv.month = 3;
-  dayv.note = "1950 - Nace Norberto Napolitano (Pappo)";
-  vector_add(dayv);
-  // Internacionales
-    dayv.day   = 6;
-  dayv.month = 2;
-  dayv.note = "1945 - Nace Robert Nesta Marley en Jamaica";
-  vector_add(dayv);
-    dayv.day   = 9;
-  dayv.month = 10;
-  dayv.note = "1940 - Nace John Lennon en Liverpool";
-  vector_add(dayv);
-    dayv.day   = 6;
+    dayv.day = 23;
   dayv.month = 1;
-  dayv.note = "1946 - Nace Syd Barret en Cambridge, fundador Pink Floyd";
+  dayv.note = "1950-Nace Luis Alberto Spinetta";
+    dayv.day = 10;
+  dayv.month = 3;
+  dayv.note = "1950-Nace Norberto Napolitano (Pappo)";
   vector_add(dayv);
-    dayv.day   = 6;
+      dayv.day = 13;
+  dayv.month = 3;
+  dayv.note = "1963-Nace Fito Paez en Rosario";
+  vector_add(dayv);
+    dayv.day = 24;
+  dayv.month = 7;
+  dayv.note = "1964-Nace Vicentico (Fabulosos Cadillacs)";
+  vector_add(dayv);
+  
+  // Internacionales
+    dayv.day = 26;
+  dayv.month = 7;
+  dayv.note = "1943-Nace Mick Jagger en Dartford, UK";
+  vector_add(dayv);
+  
+    dayv.day = 6;
+  dayv.month = 2;
+  dayv.note = "1945-Nace Robert Nesta Marley en Jamaica";
+  vector_add(dayv);
+    dayv.day = 6;
+  dayv.month = 3;
+  dayv.note = "1946-Nace David Gilmour en Cambridge";
+  vector_add(dayv);
+    dayv.day = 9;
+  dayv.month = 10;
+  dayv.note = "1940-Nace John Lennon en Liverpool";
+  vector_add(dayv);
+    dayv.day = 6;
+  dayv.month = 1;
+  dayv.note = "1946-Nace Syd Barret, fundador Pink Floyd";
+  vector_add(dayv);
+    dayv.day = 6;
   dayv.month = 9;
-  dayv.note = "1943 - Nace Roger Waters en UK, fundador Pink Floyd";
+  dayv.note = "1943-Nace Roger Waters,fundador de Pink Floyd";
   vector_add(dayv);
-      dayv.day   = 11;
+    dayv.day = 6;
+  dayv.month = 10;
+  dayv.note = "1966-Nace Adolfo Fito Cabrales (Fito&Fitipaldis)";
+  vector_add(dayv);
+    dayv.day = 11;
   dayv.month = 12;
-  dayv.note = "1890 - Nace Carlos Gardel en Touluse, el Zorzal";
+  dayv.note = "1890-Nace Carlos Gardel en Touluse,el Zorzal";
   vector_add(dayv);
+
   // -- END of dates
+  
 int rc;
 // The I2C SDA/SCL pins set to -1 means to use the default Wire library
 rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 800000L); // use standard I2C bus at 400Khz
@@ -210,13 +248,23 @@ void animation_close(uint8_t number) {
           obdDrawLine(&obd, OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1, 1);
         }
      break;
-         case 3:
+     case 3:
         for (y=0; y<OLED_HEIGHT-1; y++)
         {
           obdDrawLine(&obd, 0, y, OLED_WIDTH-1,y, 1, 1);
           delay(10);
         }
      break;
+     case 4:
+      for (uint16_t i=0; i<50; i++)
+      {
+        uint8_t r = random(20);
+        x = r+random(OLED_WIDTH-r);
+        y = r+random(OLED_HEIGHT-r);
+        //obdEllipse(&_obd, x, y, r, r, color, 0);
+        obdEllipse(&obd, x, y, r, r, 1, 0);
+      }
+      break;
      default:
         for (x=0; x<OLED_WIDTH-1; x+=2)
         {
@@ -263,12 +311,12 @@ void loop() {
 
    
   // append ch to str
-  char separator[4] = " : ";
+  char separator[4] = ":";
   strncat(clockhh, separator, 3);
   strncat(clockhh, minute_buffer, 2);
 
   String day_message = vector_find(day, month);
-
+  // Fills all with 0x0 (Black)
   obdFill(&obd, 0x0, 1);
   
   obdWriteString(&obd, 0,10,2, clockhh, FONT_16x32, 0, 1);
@@ -282,12 +330,13 @@ void loop() {
   delay(5000);
   
  // Pixel and line functions won't work without a back buffer
-  animation_close(random(5));
+  animation_close(random(6));
   delay(400);
 
+  obdFill(&obd, 0x0, 1);
   char t[20] = "Temperatura:";
   obdWriteString(&obd, 0,10,3, t, FONT_8x8, 0, 1);
-  obdWriteString(&obd, 0,30,17, temperature, FONT_16x32, 0, 1);
+  obdWriteString(&obd, 0,32,17, temperature, FONT_16x32, 0, 1);
   delay(2000);
 
   
