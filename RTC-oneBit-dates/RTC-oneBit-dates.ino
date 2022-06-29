@@ -13,7 +13,7 @@
 // Deepsleep library
 #include <Adafruit_SleepyDog.h>
 // Fonts
-#include "Ubuntu_M36pt7b.h"
+#include "Ubuntu_M24pt8b.h"
 /* Vectors belong to a C++ library
    called STL so we need to import
    it first. They are use here only 
@@ -66,7 +66,7 @@ static uint8_t ucBackBuffer[1024];
 #define MY_OLED OLED_128x64
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
-OBDISP obd;
+ONE_BIT_DISPLAY display;
 
 String vector_find(uint8_t day, uint8_t month) {
   String ret = "";
@@ -105,9 +105,6 @@ void setup() {
   dayv.month = 7;
   dayv.note = "Feliz cumple Carlos Fasani";
   vector_add(dayv);
-
-  
-  
   dayv.day   = 18;
   dayv.month = 1;
   dayv.note = "Feliz cumple Anabelli";
@@ -196,23 +193,28 @@ void setup() {
   dayv.month = 10;
   dayv.note = "1966-Nace Adolfo Fito Cabrales (Fito&Fitipaldis)";
   vector_add(dayv);
-    dayv.day = 11;
-  dayv.month = 12;
-  dayv.note = "1890-Nace Carlos Gardel en Touluse,el Zorzal";
+  
+    dayv.day = 29; //11
+  dayv.month = 6; //12
+  dayv.note = "1890-Nace Carlos Gardel en Touluse, el Zorzal";
   vector_add(dayv);
 
   // -- END of dates
   
-int rc;
-// The I2C SDA/SCL pins set to -1 means to use the default Wire library
-rc = obdI2CInit(&obd, MY_OLED, OLED_ADDR, FLIP180, INVERT, USE_HW_I2C, SDA_PIN, SCL_PIN, RESET_PIN, 800000L); // use standard I2C bus at 400Khz
-  if (rc != OLED_NOT_FOUND)
-  {
-    char *msgs[] = {(char *)"SSD1306 @ 0x3C", (char *)"SSD1306 @ 0x3D",(char *)"SH1106 @ 0x3C",(char *)"SH1106 @ 0x3D"};
-    obdFill(&obd, 0, 1);
-    obdSetTextWrap(&obd, true);
-    obdSetBackBuffer(&obd, ucBackBuffer);
+ display.I2Cbegin(OLED_128x64);
+  //
+  // Here we're asking the library to allocate the backing buffer
+  // If successful, the library will change the render flag to "RAM only" so that
+  // all drawing occurs only to the internal buffer, and display() must be called
+  // to see the changes. Without a backing buffer, the API will try to draw all
+  // output directly to the display instead.
+  //
+  if (!display.allocBuffer()) {
+    display.print("Alloc failed");
   }
+  display.setTextWrap(true);
+  display.fillScreen(OLED_BLACK);
+  display.setScroll(true);
 } /* setup() */
 
 bool century = false;
@@ -223,12 +225,12 @@ void animation_close(uint8_t number) {
   //Serial.printf("anim %d\n", number);
   uint16_t x = 0;
   uint16_t y = 0;
-  //obdFill(&obd, 0,1);
+
   switch (number) {
     case 0:
           for (x=0; x<OLED_WIDTH-1; x+=2)
         {
-          obdDrawLine(&obd, x, 0, x, OLED_HEIGHT-1, 1, 1);
+          display.drawLine( x, 0, x, OLED_HEIGHT-1, 1);
         }
     case 1:
       x = random(1000);
@@ -236,23 +238,23 @@ void animation_close(uint8_t number) {
       {
         x = random(OLED_WIDTH);
         y = random(OLED_HEIGHT);
-        obdSetPixel(&obd, x, y, 1, 1);
+        display.drawPixel(x, y, 1);
       }
       break;
     case 2:
       for (x=0; x<OLED_WIDTH-1; x+=2)
         {
-          obdDrawLine(&obd, x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, 1, 1);
+          display.drawLine(x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, 1);
         }
         for (y=0; y<OLED_HEIGHT-1; y+=2)
         {
-          obdDrawLine(&obd, OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1, 1);
+          display.drawLine(OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1);
         }
      break;
      case 3:
         for (y=0; y<OLED_HEIGHT-1; y++)
         {
-          obdDrawLine(&obd, 0, y, OLED_WIDTH-1,y, 1, 1);
+          display.drawLine(0, y, OLED_WIDTH-1,y, 1);
           delay(10);
         }
      break;
@@ -262,19 +264,20 @@ void animation_close(uint8_t number) {
         uint8_t r = random(20);
         x = r+random(OLED_WIDTH-r);
         y = r+random(OLED_HEIGHT-r);
-        //obdEllipse(&_obd, x, y, r, r, color, 0);
-        obdEllipse(&obd, x, y, r, r, 1, 0);
+        
+        display.drawCircle(x, y, r, 1);
       }
       break;
      default:
         for (x=0; x<OLED_WIDTH-1; x+=2)
         {
-          obdDrawLine(&obd, x, 0, x, OLED_HEIGHT-1, 1, 1);
+                      // (x1,y1,  x2, y2, int iColor)
+          display.drawLine(x, 0, x, OLED_HEIGHT-1, 1);
           delay(20);
         }
         for (y=0; y<OLED_HEIGHT-1; y+=3)
         {
-          obdDrawLine(&obd, 0, y, OLED_WIDTH-1,y, 1, 1);
+          display.drawLine(0, y, OLED_WIDTH-1,y, 1);
           delay(15);
         }
   }
@@ -317,30 +320,50 @@ void loop() {
   strncat(clockhh, minute_buffer, 2);
 
   String day_message = vector_find(day, month);
+  
   // Fills all with 0x0 (Black)
-  obdFill(&obd, 0x0, 1);
-  obdWriteString(&obd, 0,10,2, clockhh, FONT_16x32, 0, 1);
-  //                      x  y  write "day month" 
-  obdWriteString(&obd, 0, 10,30,(char *)day_number, FONT_8x8, 0, 1);
-  obdWriteString(&obd, 0, 30,30,(char *)month_t[month], FONT_8x8, 0, 1);
-  
-  // Write special message if the day matches:
-  obdWriteString(&obd, 0, 0,40,(char *)day_message.c_str(), FONT_8x8, 0, 1);
-  // Wait this millis after showing main screen
+  display.fillScreen(OLED_BLACK);
+  //display.setTextColor(1, OLED_BLACK);
+  display.setFreeFont(&Ubuntu_M24pt8b);
+  display.setCursor(0,33);
+  display.print(clockhh);
+
+  display.setFont(FONT_8x8);
+  display.setCursor(10,44);
+  display.print(day_number);
+  display.setCursor(30,44);
+  display.print(month_t[month]);
+  display.display();
   delay(5000);
+
+  if (day_message != "") {
+    // No idea on how to use the obdSetTextWrap(&obd, true);
+    animation_close(random(6));
+    //display.fillScreen(OLED_BLACK);
+    display.setCursor(0,30);
+    display.print(day_message.c_str());
+    display.display();
+    delay(3000);
+  }
   
- // Pixel and line functions won't work without a back buffer
+  // Pixel and line functions won't work without a back buffer
   animation_close(random(6));
   delay(400);
 
-  obdFill(&obd, 0x0, 1);
+  display.fillScreen(OLED_BLACK);
   char t[20] = "Temperatura:";
-  obdWriteString(&obd, 0,10,3, t, FONT_8x8, 0, 1);
-  obdWriteString(&obd, 0,32,17, temperature, FONT_16x32, 0, 1);
-  delay(2000);
+  display.setCursor(20,0);
+  display.print(t);
+  display.setFreeFont(&Ubuntu_M24pt8b);
+  display.setCursor(16,46);
+  display.print(temperature);
+  display.display();
+  //obdWriteString(&obd, 0,10,3, t, FONT_8x8, 0, 1);
+  //obdWriteString(&obd, 0,32,17, temperature, FONT_16x32, 0, 1);
+  delay(2500);
 
   
-  obdFill(&obd, 0x0, 1);
+  display.fillScreen(OLED_BLACK);
   int sleepMS = Watchdog.sleep(60000);
   Serial.printf("Go to sleep %d\n\n", sleepMS);
 } /* loop() */
