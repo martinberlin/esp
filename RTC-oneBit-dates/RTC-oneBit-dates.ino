@@ -12,7 +12,8 @@
 #include <Adafruit_TinyUSB.h>
 // Deepsleep library
 #include <Adafruit_SleepyDog.h>
-
+// Fonts
+#include "Ubuntu_M36pt7b.h"
 /* Vectors belong to a C++ library
    called STL so we need to import
    it first. They are use here only 
@@ -219,10 +220,10 @@ bool h12Flag;
 bool pmFlag;
 
 void animation_close(uint8_t number) {
-  Serial.printf("anim %d\n", number);
+  //Serial.printf("anim %d\n", number);
   uint16_t x = 0;
   uint16_t y = 0;
-  obdFill(&obd, 0,1);
+  //obdFill(&obd, 0,1);
   switch (number) {
     case 0:
           for (x=0; x<OLED_WIDTH-1; x+=2)
@@ -318,7 +319,6 @@ void loop() {
   String day_message = vector_find(day, month);
   // Fills all with 0x0 (Black)
   obdFill(&obd, 0x0, 1);
-  
   obdWriteString(&obd, 0,10,2, clockhh, FONT_16x32, 0, 1);
   //                      x  y  write "day month" 
   obdWriteString(&obd, 0, 10,30,(char *)day_number, FONT_8x8, 0, 1);
