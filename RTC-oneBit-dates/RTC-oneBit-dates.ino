@@ -221,68 +221,91 @@ bool century = false;
 bool h12Flag;
 bool pmFlag;
 
-void animation_close(uint8_t number) {
+void animation_close(uint8_t number, uint8_t color = 1) {
   //Serial.printf("anim %d\n", number);
   uint16_t x = 0;
   uint16_t y = 0;
 
   switch (number) {
-    case 0:
+    case 0: // Close to the right
           for (x=0; x<OLED_WIDTH-1; x+=2)
         {
-          display.drawLine( x, 0, x, OLED_HEIGHT-1, 1);
+          display.drawLine(x, 0, x, OLED_HEIGHT-1, color);
+          delay(6);
         }
-    case 1:
+    case 1: // Random pixels
       x = random(1000);
       for (uint16_t i=0; i<3000+x; i++)
       {
         x = random(OLED_WIDTH);
         y = random(OLED_HEIGHT);
-        display.drawPixel(x, y, 1);
+        display.drawPixel(x, y, color);
+        delay(1);
       }
       break;
-    case 2:
+    case 2: // Grid
       for (x=0; x<OLED_WIDTH-1; x+=2)
         {
-          display.drawLine(x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, 1);
+          display.drawLine(x, 0, OLED_WIDTH-x, OLED_HEIGHT-1, color);
+          delay(2);
         }
         for (y=0; y<OLED_HEIGHT-1; y+=2)
         {
-          display.drawLine(OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, 1);
+          display.drawLine(OLED_WIDTH-1,y, 0,OLED_HEIGHT-1-y, color);
+          delay(1);
         }
      break;
-     case 3:
+     case 3: // Close down window
         for (y=0; y<OLED_HEIGHT-1; y++)
         {
-          display.drawLine(0, y, OLED_WIDTH-1,y, 1);
+          display.drawLine(0, y, OLED_WIDTH-1,y, color);
           delay(10);
         }
      break;
-     case 4:
+     case 4:  // Circles
       for (uint16_t i=0; i<50; i++)
       {
         uint8_t r = random(20);
         x = r+random(OLED_WIDTH-r);
         y = r+random(OLED_HEIGHT-r);
         
-        display.drawCircle(x, y, r, 1);
+        display.drawCircle(x, y, r, color);
+        delay(1);
       }
       break;
-     default:
-        for (x=0; x<OLED_WIDTH-1; x+=2)
+     case 5: // Rainforest
+      for (uint16_t xi=0; xi<OLED_WIDTH; xi++)
+      {
+        for (uint16_t d=1; d<random(10)+1; d++)
         {
-                      // (x1,y1,  x2, y2, int iColor)
-          display.drawLine(x, 0, x, OLED_HEIGHT-1, 1);
-          delay(20);
+          uint8_t drop = random(10);
+          uint8_t yi = random(OLED_HEIGHT-drop);
+          display.drawLine(xi, yi, xi, yi+drop, color);
+          delay(4);
         }
-        for (y=0; y<OLED_HEIGHT-1; y+=3)
+      }
+      break;
+           case 6: // Flashes!
+      for (uint16_t xi=0; xi<12; xi++)
+      {
+       display.fillScreen(OLED_WHITE);
+       delay(5);
+       display.fillScreen(OLED_BLACK);
+       delay(15);
+      }
+      break;
+     default: // Close up window
+        for (y=OLED_HEIGHT; y>0; y--)
         {
-          display.drawLine(0, y, OLED_WIDTH-1,y, 1);
-          delay(15);
+          display.drawLine(0, y, OLED_WIDTH-1,y, color);
+          delay(10);
         }
+     break;
   }
   
 }
+
+uint8_t total_random_slides = 7;
 
 void loop() {
   // Won't need this for 80 years.
@@ -318,8 +341,6 @@ void loop() {
   char separator[4] = ":";
   strncat(clockhh, separator, 3);
   strncat(clockhh, minute_buffer, 2);
-
-  String day_message = vector_find(day, month);
   
   // Fills all with 0x0 (Black)
   display.fillScreen(OLED_BLACK);
@@ -336,19 +357,16 @@ void loop() {
   display.display();
   delay(5000);
 
+  String day_message = vector_find(day, month);
   if (day_message != "") {
-    // No idea on how to use the obdSetTextWrap(&obd, true);
-    animation_close(random(6));
-    //display.fillScreen(OLED_BLACK);
+    // Implemented a new method setTextWrap in the C++ api for obdSetTextWrap(&obd, true);
+    animation_close(random(total_random_slides));
+    display.fillRect(0,20,OLED_WIDTH,33, 0);
     display.setCursor(0,30);
     display.print(day_message.c_str());
     display.display();
-    delay(3000);
+    delay(4000);
   }
-  
-  // Pixel and line functions won't work without a back buffer
-  animation_close(random(6));
-  delay(400);
 
   display.fillScreen(OLED_BLACK);
   char t[20] = "Temperatura:";
@@ -358,10 +376,9 @@ void loop() {
   display.setCursor(16,46);
   display.print(temperature);
   display.display();
-  //obdWriteString(&obd, 0,10,3, t, FONT_8x8, 0, 1);
-  //obdWriteString(&obd, 0,32,17, temperature, FONT_16x32, 0, 1);
-  delay(2500);
 
+  delay(3000);
+  animation_close(random(total_random_slides-1), 0);
   
   display.fillScreen(OLED_BLACK);
   int sleepMS = Watchdog.sleep(60000);
