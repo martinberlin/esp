@@ -194,14 +194,14 @@ void setup() {
   dayv.note = "1966-Nace Adolfo Fito Cabrales (Fito&Fitipaldis)";
   vector_add(dayv);
   
-    dayv.day = 29; //11
-  dayv.month = 6; //12
+    dayv.day = 1; //11
+  dayv.month = 7; //12
   dayv.note = "1890-Nace Carlos Gardel en Touluse, el Zorzal";
   vector_add(dayv);
 
   // -- END of dates
   
- display.I2Cbegin(OLED_128x64);
+ display.I2Cbegin(MY_OLED);
   //
   // Here we're asking the library to allocate the backing buffer
   // If successful, the library will change the render flag to "RAM only" so that
@@ -381,6 +381,7 @@ void loop() {
   animation_close(random(total_random_slides-1), 0);
   
   display.fillScreen(OLED_BLACK);
+  display.display();
   int sleepMS = Watchdog.sleep(60000);
   Serial.printf("Go to sleep %d\n\n", sleepMS);
 } /* loop() */
