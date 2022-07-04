@@ -42,6 +42,8 @@ char weekday_t[][12] = { "", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 
 char month_t[][12] = { "", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
+//#define ENABLE_SERIAL_DEBUG
+#define RTC_ENABLE_PIN 10
 
 #define USE_BACKBUFFER
 static uint8_t ucBackBuffer[1024];
@@ -84,8 +86,11 @@ void vector_add(const Day_alert & data) {
 }
 
 void setup() {
-  //Serial.begin(115200);
-  //while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  #ifdef ENABLE_SERIAL_DEBUG
+  Serial.begin(115200);
+  while ( !Serial ) delay(10);   // for nrf52840 with native usb
+  #endif
+  
   Day_alert dayv;
   
   // Make a list of some important dates
@@ -198,23 +203,9 @@ void setup() {
   dayv.month = 7; //12
   dayv.note = "1890-Nace Carlos Gardel en Touluse, el Zorzal";
   vector_add(dayv);
-
   // -- END of dates
+  pinMode(RTC_ENABLE_PIN, OUTPUT);    // sets the digital pin 10 as output (Feeds RTC)
   
- display.I2Cbegin(MY_OLED);
-  //
-  // Here we're asking the library to allocate the backing buffer
-  // If successful, the library will change the render flag to "RAM only" so that
-  // all drawing occurs only to the internal buffer, and display() must be called
-  // to see the changes. Without a backing buffer, the API will try to draw all
-  // output directly to the display instead.
-  //
-  if (!display.allocBuffer()) {
-    display.print("Alloc failed");
-  }
-  display.setTextWrap(true);
-  display.fillScreen(OLED_BLACK);
-  display.setScroll(true);
 } /* setup() */
 
 bool century = false;
@@ -308,6 +299,23 @@ void animation_close(uint8_t number, uint8_t color = 1) {
 uint8_t total_random_slides = 7;
 
 void loop() {
+  digitalWrite(RTC_ENABLE_PIN, HIGH);
+  // Wait some millis so it does wake up
+  //delay(100);
+  // Start display
+  display.I2Cbegin(MY_OLED);
+  //
+  // Here we're asking the library to allocate the backing buffer
+  // If successful, the library will change the render flag to "RAM only" so that
+  // all drawing occurs only to the internal buffer, and display() must be called
+  // to see the changes. Without a backing buffer, the API will try to draw all
+  // output directly to the display instead.
+  //
+  if (!display.allocBuffer()) {
+    display.print("Alloc failed");
+  }
+  display.setTextWrap(true);
+  display.fillScreen(OLED_BLACK);
   // Won't need this for 80 years.
   uint8_t month = myRTC.getMonth(century);
   uint8_t day = myRTC.getDate();
@@ -324,6 +332,7 @@ void loop() {
   itoa(day, day_number, 10);
 
   itoa(myRTC.getTemperature(), temperature, 10);
+  
   char celsius[4] = " C";
   strncat(temperature, celsius, 2);
 
@@ -382,6 +391,12 @@ void loop() {
   
   display.fillScreen(OLED_BLACK);
   display.display();
+  
+  // Switch off RTC
+  digitalWrite(RTC_ENABLE_PIN, LOW);
+
   int sleepMS = Watchdog.sleep(60000);
+  #ifdef ENABLE_SERIAL_DEBUG
   Serial.printf("Go to sleep %d\n\n", sleepMS);
+  #endif
 } /* loop() */
