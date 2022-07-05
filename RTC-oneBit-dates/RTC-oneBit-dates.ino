@@ -43,7 +43,9 @@ char weekday_t[][12] = { "", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursd
 char month_t[][12] = { "", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
 
 //#define ENABLE_SERIAL_DEBUG
-#define RTC_ENABLE_PIN 10
+// Micro enable is IO9 connected to EN pin (On LOW should restart Microchip)
+#define MICRO_ENABLE_PIN 9
+#define RTC_ENABLE_PIN   10
 
 #define USE_BACKBUFFER
 static uint8_t ucBackBuffer[1024];
@@ -204,6 +206,10 @@ void setup() {
   dayv.note = "1890-Nace Carlos Gardel en Touluse, el Zorzal";
   vector_add(dayv);
   // -- END of dates
+  
+  // PIN CONFIGs
+  pinMode(MICRO_ENABLE_PIN, OUTPUT);
+  digitalWrite(MICRO_ENABLE_PIN, HIGH);
   pinMode(RTC_ENABLE_PIN, OUTPUT);    // sets the digital pin 10 as output (Feeds RTC)
   
 } /* setup() */
@@ -300,10 +306,11 @@ uint8_t total_random_slides = 7;
 
 void loop() {
   digitalWrite(RTC_ENABLE_PIN, HIGH);
-  // Wait some millis so it does wake up
-  //delay(100);
+  
   // Start display
   display.I2Cbegin(MY_OLED);
+  // Wait some millis so it does wake up
+  delay(100);
   //
   // Here we're asking the library to allocate the backing buffer
   // If successful, the library will change the render flag to "RAM only" so that
@@ -315,7 +322,8 @@ void loop() {
     display.print("Alloc failed");
   }
   display.setTextWrap(true);
-  display.fillScreen(OLED_BLACK);
+  //display.fillScreen(OLED_BLACK);
+  
   // Won't need this for 80 years.
   uint8_t month = myRTC.getMonth(century);
   uint8_t day = myRTC.getDate();
@@ -391,11 +399,18 @@ void loop() {
   
   display.fillScreen(OLED_BLACK);
   display.display();
+  delay(10);
   
   // Switch off RTC
   digitalWrite(RTC_ENABLE_PIN, LOW);
 
+ 
   int sleepMS = Watchdog.sleep(60000);
+  if (minute % 10 == 0) {
+    // RESET device since after long minutes display stops working
+    digitalWrite(MICRO_ENABLE_PIN, LOW);
+  }
+  
   #ifdef ENABLE_SERIAL_DEBUG
   Serial.printf("Go to sleep %d\n\n", sleepMS);
   #endif
