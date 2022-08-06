@@ -44,7 +44,7 @@ char month_t[][12] = { "", "January", "February", "March", "April", "May", "June
 
 //#define ENABLE_SERIAL_DEBUG
 // Micro enable is IO9 connected to EN pin (On LOW should restart Microchip)
-#define MICRO_ENABLE_PIN 9
+#define MICRO_ENABLE_PIN 11
 #define RTC_ENABLE_PIN   10
 
 #define USE_BACKBUFFER
@@ -106,7 +106,7 @@ void setup() {
   vector_add(dayv);
   dayv.day   = 12;
   dayv.month = 7;
-  dayv.note = "Feliz cumple JAVI";
+  dayv.note = "Feliz cumple\nhermano JAVI.";
   vector_add(dayv);
   dayv.day   = 18;
   dayv.month = 7;
@@ -128,7 +128,7 @@ void setup() {
 
   dayv.day   = 14;
   dayv.month = 9;
-  dayv.note = "Feliz cumple Nel";
+  dayv.note = "Feliz cumple\nNel";
   vector_add(dayv);
 
   // - - - Fechas historicas
@@ -167,7 +167,7 @@ void setup() {
   vector_add(dayv);
     dayv.day = 24;
   dayv.month = 7;
-  dayv.note = "1964-Nace Vicentico (Fabulosos Cadillacs)";
+  dayv.note = "1964-Nace Vicentico (Fabulosos)";
   vector_add(dayv);
   
   // Internacionales
@@ -190,20 +190,20 @@ void setup() {
   vector_add(dayv);
     dayv.day = 6;
   dayv.month = 1;
-  dayv.note = "1946-Nace Syd Barret, fundador Pink Floyd";
+  dayv.note = "1946-Nace Syd Barret,Pink Floyd";
   vector_add(dayv);
     dayv.day = 6;
   dayv.month = 9;
-  dayv.note = "1943-Nace Roger Waters,fundador de Pink Floyd";
+  dayv.note = "1943-Nace Roger Waters,Pink Floyd";
   vector_add(dayv);
     dayv.day = 6;
   dayv.month = 10;
-  dayv.note = "1966-Nace Adolfo Fito Cabrales (Fito&Fitipaldis)";
+  dayv.note = "1966-Nace Adolfo Fito Cabrales";
   vector_add(dayv);
   
-    dayv.day = 1; //11
-  dayv.month = 7; //12
-  dayv.note = "1890-Nace Carlos Gardel en Touluse, el Zorzal";
+    dayv.day = 11; //11
+  dayv.month = 12; //12
+  dayv.note = "1890-Nace Carlos Gardel en Touluse";
   vector_add(dayv);
   // -- END of dates
   
